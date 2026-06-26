@@ -1,5 +1,6 @@
 import type { CrawlEntry, CrawlState, Env } from '../types'
 import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl } from './parser'
+import { fetchPageLikeBrowser, humanDelay } from './http-client'
 
 // ─── Constants ──────────────────────────────────────────────
 
@@ -10,12 +11,10 @@ const STORAGE_KEY_CURSOR = 'crawl_cursor'
 const STORAGE_KEY_LAST_CRAWL_MAP = 'last_crawl_map'
 
 const ALARM_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24 hours
-const CRAWL_DELAY_MS = 500 // delay between page fetches
-const FETCH_TIMEOUT_MS = 10_000 // per-page fetch timeout
+const BASE_CRAWL_DELAY_MS = 1200 // base delay between page fetches
+const FETCH_TIMEOUT_MS = 15_000 // per-page fetch timeout
 const MAX_RETRIES = 2
-const SERIES_PER_ALARM = 1 // how many series to crawl per alarm cycle
-
-const USER_AGENT = 'SCP-Latom-Node/1.0 (contact: admin@scp.lat)'
+const SERIES_PER_ALARM = 1
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -85,18 +84,14 @@ export class ScpCrawlerDo {
 
   /**
    * Alarm handler — performs incremental crawl.
-   * Crawls 1-2 series pages per cycle, rotating through all 8.
-   * Full cycle completes over ~8 days.
    */
   async alarm(): Promise<void> {
     try {
       const entries = await this.getEntries()
       if (entries.length === 0) {
-        // No data yet — do a full crawl first
-        const language = 'en' // default; will be overridden on first manual trigger
+        const language = 'en'
         await this.crawlAll(language)
       } else {
-        // Incremental crawl
         const isCn = entries[0]?.url.includes('scp-wiki-cn')
         const language: 'en' | 'cn' = isCn ? 'cn' : 'en'
         await this.crawlIncremental(language)
@@ -105,7 +100,6 @@ export class ScpCrawlerDo {
       console.error('[ScpCrawlerDo] Alarm error:', err)
     }
 
-    // Always schedule next alarm
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS)
   }
 
@@ -209,11 +203,9 @@ export class ScpCrawlerDo {
       )
     }
 
-    // Parse optional limit parameter
     const limitParam = url.searchParams.get('limit')
     const limit = limitParam ? Math.max(1, parseInt(limitParam, 10) || 0) : 0
 
-    // Manual trigger = full crawl (with optional limit)
     const ctx = this.state as unknown as { waitUntil?: (p: Promise<void>) => void }
     if (typeof ctx.waitUntil === 'function') {
       ctx.waitUntil(this.crawlAll(language, limit))
@@ -237,24 +229,18 @@ export class ScpCrawlerDo {
 
   // ─── Incremental Crawl ──────────────────────────────────
 
-  /**
-   * Incremental crawl — fetches only SERIES_PER_ALARM series pages,
-   * merges results into existing data.
-   */
   private async crawlIncremental(language: 'en' | 'cn'): Promise<void> {
     const cursor = await this.getCursor()
     const lastCrawlMap = await this.getLastCrawlMap()
     const existingEntries = await this.getEntries()
     const baseUrl = getWikiBaseUrl(language)
 
-    // Build the set of series to crawl this cycle
     const seriesToCrawl: number[] = []
     for (let i = 0; i < SERIES_PER_ALARM; i++) {
       const seriesIdx = (cursor + i) % SERIES_PAGES.length
-      seriesToCrawl.push(seriesIdx) // 0-based index
+      seriesToCrawl.push(seriesIdx)
     }
 
-    // Set crawling state (preserve existing entry count)
     await this.state.storage.put(STORAGE_KEY_STATE, {
       status: 'crawling',
       lastCrawl: 0,
@@ -264,7 +250,8 @@ export class ScpCrawlerDo {
     const newEntriesByScp = new Map<number, CrawlEntry>()
     let crawlErrors = 0
 
-    for (const seriesIdx of seriesToCrawl) {
+    for (let i = 0; i < seriesToCrawl.length; i++) {
+      const seriesIdx = seriesToCrawl[i]
       const pageSlug = SERIES_PAGES[seriesIdx]
       const seriesNum = seriesIdx + 1
       const pageUrl = `${baseUrl}/${pageSlug}`
@@ -285,24 +272,20 @@ export class ScpCrawlerDo {
         console.warn(`[ScpCrawlerDo] Parse errors on ${pageSlug}:`, parseErrors)
       }
 
-      // Update series-specific storage
       await this.state.storage.put(`${STORAGE_KEY_PREFIX_SERIES}${seriesNum}`, pageEntries)
 
-      // Index new entries by SCP number for merge
       for (const entry of pageEntries) {
         newEntriesByScp.set(entry.scpNumber, entry)
       }
 
-      // Update last crawl time for this series
       lastCrawlMap[seriesNum] = Date.now()
 
-      // Rate limit between pages
-      if (seriesIdx !== seriesToCrawl[seriesToCrawl.length - 1]) {
-        await delay(CRAWL_DELAY_MS)
+      // Human-like delay between pages
+      if (i < seriesToCrawl.length - 1) {
+        await delay(humanDelay(BASE_CRAWL_DELAY_MS))
       }
     }
 
-    // Merge: update existing entries with new data, add new ones
     const mergedMap = new Map<number, CrawlEntry>()
     for (const entry of existingEntries) {
       mergedMap.set(entry.scpNumber, entry)
@@ -312,11 +295,8 @@ export class ScpCrawlerDo {
     }
 
     const mergedEntries = Array.from(mergedMap.values()).sort((a, b) => a.scpNumber - b.scpNumber)
-
-    // Advance cursor
     const nextCursor = (cursor + SERIES_PER_ALARM) % SERIES_PAGES.length
 
-    // Store results
     await this.state.storage.put(STORAGE_KEY_ENTRIES, mergedEntries)
     await this.state.storage.put(STORAGE_KEY_CURSOR, nextCursor)
     await this.state.storage.put(STORAGE_KEY_LAST_CRAWL_MAP, lastCrawlMap)
@@ -331,16 +311,14 @@ export class ScpCrawlerDo {
   // ─── Full Crawl ─────────────────────────────────────────
 
   /**
-   * Full crawl — fetches all series pages. Used for manual triggers
-   * and first-time initialization.
-   * @param limit - Max entries to collect. 0 = unlimited (all entries).
+   * Full crawl — fetches all series pages with browser-like behavior.
+   * @param limit - Max entries to collect. 0 = unlimited.
    */
   private async crawlAll(language: 'en' | 'cn', limit = 0): Promise<void> {
     const baseUrl = getWikiBaseUrl(language)
     const allEntries: CrawlEntry[] = []
     const lastCrawlMap: Record<number, number> = {}
-    let hasErrors = false
-    let lastError = ''
+    const errors: string[] = []
 
     await this.state.storage.put(STORAGE_KEY_STATE, {
       status: 'crawling',
@@ -349,22 +327,33 @@ export class ScpCrawlerDo {
     })
 
     for (let i = 0; i < SERIES_PAGES.length; i++) {
-      // Stop early if we've reached the limit
       if (limit > 0 && allEntries.length >= limit) break
 
       const pageSlug = SERIES_PAGES[i]
       const pageUrl = `${baseUrl}/${pageSlug}`
       const seriesNum = i + 1
 
-      const html = await this.fetchPage(pageUrl, language)
+      // Fetch with browser-like behavior
+      const result = await fetchPageLikeBrowser(pageUrl, {
+        baseUrl,
+        language,
+        fetcher: this.fetcher,
+        timeoutMs: FETCH_TIMEOUT_MS,
+      })
 
-      if (!html) {
-        hasErrors = true
-        lastError = `Failed to fetch ${pageSlug}`
+      if (!result.ok || !result.html) {
+        const errMsg = `Failed to fetch ${pageSlug}: ${result.error ?? `HTTP ${result.status}`}`
+        console.warn(`[ScpCrawlerDo] ${errMsg}`)
+        errors.push(errMsg)
+
+        // Retry with backoff
+        if (result.status === 429) {
+          await delay(Math.pow(2, 1) * 1000)
+        }
         continue
       }
 
-      const { entries: pageEntries, errors: parseErrors } = parseScpIndexPage(html, {
+      const { entries: pageEntries, errors: parseErrors } = parseScpIndexPage(result.html, {
         baseUrl,
         language,
         seriesHint: seriesNum,
@@ -374,7 +363,6 @@ export class ScpCrawlerDo {
         console.warn(`[ScpCrawlerDo] Parse errors on ${pageSlug}:`, parseErrors)
       }
 
-      // If limit is set, only take what we need from this page
       if (limit > 0) {
         const remaining = limit - allEntries.length
         allEntries.push(...pageEntries.slice(0, remaining))
@@ -383,22 +371,24 @@ export class ScpCrawlerDo {
       }
 
       lastCrawlMap[seriesNum] = Date.now()
-
-      // Store per-series data (store full page, not truncated)
       await this.state.storage.put(`${STORAGE_KEY_PREFIX_SERIES}${seriesNum}`, pageEntries)
 
+      // Human-like delay between pages
       if (i < SERIES_PAGES.length - 1) {
-        await delay(CRAWL_DELAY_MS)
+        await delay(humanDelay(BASE_CRAWL_DELAY_MS))
       }
     }
 
     allEntries.sort((a, b) => a.scpNumber - b.scpNumber)
 
+    const hasErrors = errors.length > 0
+    const hasEntries = allEntries.length > 0
+
     await this.state.storage.put(STORAGE_KEY_STATE, {
-      status: hasErrors && allEntries.length === 0 ? 'error' : 'idle',
+      status: hasErrors && !hasEntries ? 'error' : 'idle',
       lastCrawl: Date.now(),
       totalEntries: allEntries.length,
-      error: hasErrors && allEntries.length === 0 ? lastError : undefined,
+      error: hasErrors && !hasEntries ? errors[errors.length - 1] : undefined,
     })
     await this.state.storage.put(STORAGE_KEY_ENTRIES, allEntries)
     await this.state.storage.put(STORAGE_KEY_LAST_CRAWL_MAP, lastCrawlMap)
@@ -406,59 +396,17 @@ export class ScpCrawlerDo {
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS)
   }
 
-  // ─── Fetch Helper ───────────────────────────────────────
+  // ─── Legacy Fetch Helper (kept for incremental crawl) ───
 
-  /**
-   * Fetch a single page with retries and error handling.
-   * Returns null on failure.
-   */
   private async fetchPage(url: string, language: 'en' | 'cn'): Promise<string | null> {
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-
-        const response = await this.fetcher(url, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            Accept: 'text/html,application/xhtml+xml',
-            'Accept-Language': language === 'cn' ? 'zh-CN,zh;q=0.9' : 'en-US,en;q=0.9',
-          },
-          signal: controller.signal,
-        })
-
-        clearTimeout(timeout)
-
-        if (response.status === 429) {
-          console.warn(`[ScpCrawlerDo] Rate limited on ${url}, attempt ${attempt}`)
-          const backoffMs = Math.pow(2, attempt + 1) * 1000
-          await delay(backoffMs)
-          continue
-        }
-
-        if (!response.ok) {
-          console.warn(`[ScpCrawlerDo] HTTP ${response.status} for ${url}, attempt ${attempt}`)
-          if (attempt < MAX_RETRIES) {
-            await delay(1000 * (attempt + 1))
-            continue
-          }
-          return null
-        }
-
-        const html = await response.text()
-        console.log(`[ScpCrawlerDo] Fetched ${url}: ${html.length} bytes`)
-        return html
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        console.warn(`[ScpCrawlerDo] Fetch error for ${url} (attempt ${attempt}): ${msg}`)
-        if (attempt < MAX_RETRIES) {
-          await delay(1000 * (attempt + 1))
-          continue
-        }
-        return null
-      }
-    }
-    return null
+    const baseUrl = getWikiBaseUrl(language)
+    const result = await fetchPageLikeBrowser(url, {
+      baseUrl,
+      language,
+      fetcher: this.fetcher,
+      timeoutMs: FETCH_TIMEOUT_MS,
+    })
+    return result.html
   }
 
   // ─── Storage Helpers ─────────────────────────────────────
