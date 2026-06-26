@@ -370,18 +370,28 @@ export class ScpCrawlerDo {
 
   /**
    * Full crawl — fetches series pages and writes to D1.
-   * @param limit - Max entries to collect per batch. 0 = unlimited.
+   * When limit > 0, starts from the highest SCP number already in D1
+   * to support incremental batch initialization.
    */
   private async crawlAll(language: 'en' | 'cn', limit = 0): Promise<void> {
     const baseUrl = getWikiBaseUrl(language)
-    const allEntries: CrawlEntry[] = []
+    const collected: CrawlEntry[] = []
     const lastCrawlMap: Record<number, number> = {}
     const errors: string[] = []
 
     await this.upsertStateToD1(language, { status: 'crawling' })
 
+    // Find the highest SCP number already in D1 for this language
+    let startAfter = 0
+    if (limit > 0) {
+      const maxRow = await this.env.DB.prepare(
+        'SELECT MAX(scp_number) as max_num FROM scp_entries WHERE language = ?'
+      ).bind(language).first<{ max_num: number | null }>()
+      startAfter = maxRow?.max_num ?? 0
+    }
+
     for (let i = 0; i < SERIES_PAGES.length; i++) {
-      if (limit > 0 && allEntries.length >= limit) break
+      if (limit > 0 && collected.length >= limit) break
 
       const pageSlug = SERIES_PAGES[i]
       const pageUrl = `${baseUrl}/${pageSlug}`
@@ -396,15 +406,20 @@ export class ScpCrawlerDo {
         continue
       }
 
-      const { entries: pageEntries } = parseScpIndexPage(result.html, {
+      let { entries: pageEntries } = parseScpIndexPage(result.html, {
         baseUrl, language, seriesHint: seriesNum,
       })
 
+      // Skip entries we already have in D1
+      if (startAfter > 0) {
+        pageEntries = pageEntries.filter((e) => e.scpNumber > startAfter)
+      }
+
       if (limit > 0) {
-        const remaining = limit - allEntries.length
-        allEntries.push(...pageEntries.slice(0, remaining))
+        const remaining = limit - collected.length
+        collected.push(...pageEntries.slice(0, remaining))
       } else {
-        allEntries.push(...pageEntries)
+        collected.push(...pageEntries)
       }
 
       lastCrawlMap[seriesNum] = Date.now()
@@ -414,9 +429,9 @@ export class ScpCrawlerDo {
       }
     }
 
-    // Write all entries to D1
-    if (allEntries.length > 0) {
-      await this.upsertEntriesToD1(language, allEntries)
+    // Write collected entries to D1
+    if (collected.length > 0) {
+      await this.upsertEntriesToD1(language, collected)
     }
 
     // Get total count from D1
@@ -428,10 +443,10 @@ export class ScpCrawlerDo {
     await this.state.storage.put(STORAGE_KEY_LAST_CRAWL_MAP, lastCrawlMap)
 
     await this.upsertStateToD1(language, {
-      status: errors.length > 0 && allEntries.length === 0 ? 'error' : 'idle',
+      status: errors.length > 0 && collected.length === 0 ? 'error' : 'idle',
       lastCrawl: Date.now(),
       totalEntries: totalRow?.total ?? 0,
-      error: errors.length > 0 && allEntries.length === 0 ? errors[errors.length - 1] : undefined,
+      error: errors.length > 0 && collected.length === 0 ? errors[errors.length - 1] : undefined,
     })
 
     await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS)
