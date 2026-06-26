@@ -3,27 +3,43 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
 import SearchModal from '@/components/layout/SearchModal.vue'
-import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
+import MobileLayout from '@/components/mobile/MobileLayout.vue'
+import MobileSearchModal from '@/components/mobile/MobileSearchModal.vue'
+import { useDevice } from '@/composables/useDevice'
+
+const { isMobile } = useDevice()
 </script>
 
 <template>
-  <AppHeader />
-  <AppSidebar />
+  <!-- Desktop Layout -->
+  <template v-if="!isMobile">
+    <AppHeader />
+    <AppSidebar />
 
-  <main class="main">
-    <div class="main-content">
-      <RouterView v-slot="{ Component }">
-        <Transition name="page" mode="out-in">
-          <ErrorBoundary>
+    <main class="main">
+      <div class="main-content">
+        <RouterView v-slot="{ Component }">
+          <Transition name="page" mode="out-in">
             <component :is="Component" />
-          </ErrorBoundary>
-        </Transition>
-      </RouterView>
-      <AppFooter />
-    </div>
-  </main>
+          </Transition>
+        </RouterView>
+        <AppFooter />
+      </div>
+    </main>
 
-  <SearchModal />
+    <SearchModal />
+  </template>
+
+  <!-- Mobile Layout -->
+  <MobileLayout v-else>
+    <RouterView v-slot="{ Component }">
+      <Transition name="fade" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </RouterView>
+  </MobileLayout>
+
+  <MobileSearchModal v-if="isMobile" />
 </template>
 
 <style>

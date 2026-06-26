@@ -1,60 +1,112 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import i18n from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
+import DeviceView from '@/components/DeviceView.vue'
+
+function deviceRoute(
+  name: string,
+  desktop: () => Promise<any>,
+  mobile: () => Promise<any>,
+  meta: Record<string, any> = {}
+): RouteRecordRaw {
+  return {
+    path: meta.path || '/',
+    name,
+    component: DeviceView,
+    props: { desktop, mobile },
+    meta: { titleKey: meta.titleKey, ...meta },
+  }
+}
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    component: () => import('@/views/HomeView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/HomeView.vue'),
+      mobile: () => import('@/views/mobile/MobileHomeView.vue'),
+    },
     meta: { titleKey: 'nav.home' },
   },
   {
     path: '/catalog',
     name: 'catalog',
-    component: () => import('@/views/CatalogView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/CatalogView.vue'),
+      mobile: () => import('@/views/mobile/MobileCatalogView.vue'),
+    },
     meta: { titleKey: 'nav.catalog' },
   },
   {
     path: '/entry/:id',
     name: 'entry',
-    component: () => import('@/views/EntryView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/EntryView.vue'),
+      mobile: () => import('@/views/mobile/MobileEntryView.vue'),
+    },
     meta: { titleKey: 'nav.catalog' },
   },
   {
     path: '/documents',
     name: 'documents',
-    component: () => import('@/views/DocumentsView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/DocumentsView.vue'),
+      mobile: () => import('@/views/mobile/MobileDocumentsView.vue'),
+    },
     meta: { titleKey: 'nav.documents' },
   },
   {
     path: '/about',
     name: 'about',
-    component: () => import('@/views/AboutView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/AboutView.vue'),
+      mobile: () => import('@/views/mobile/MobileAboutView.vue'),
+    },
     meta: { titleKey: 'nav.about' },
   },
   {
     path: '/login',
     name: 'login',
-    component: () => import('@/views/LoginView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/LoginView.vue'),
+      mobile: () => import('@/views/mobile/MobileLoginView.vue'),
+    },
     meta: { titleKey: 'auth.loginTitle', requiresGuest: true },
   },
   {
     path: '/register',
     name: 'register',
-    component: () => import('@/views/RegisterView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/RegisterView.vue'),
+      mobile: () => import('@/views/mobile/MobileRegisterView.vue'),
+    },
     meta: { titleKey: 'auth.registerTitle', requiresGuest: true },
   },
   {
     path: '/profile',
     name: 'profile',
-    component: () => import('@/views/ProfileView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/ProfileView.vue'),
+      mobile: () => import('@/views/mobile/MobileProfileView.vue'),
+    },
     meta: { titleKey: 'auth.profile', requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    component: () => import('@/views/NotFoundView.vue'),
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/NotFoundView.vue'),
+      mobile: () => import('@/views/mobile/MobileNotFoundView.vue'),
+    },
     meta: { titleKey: 'notFound.accessDenied' },
   },
 ]
