@@ -5,7 +5,6 @@ import {
   fetchCrawlerOverallStatus,
   fetchCrawlerStatus,
   fetchCrawlerSeries,
-  triggerCrawler,
 } from '@/services/crawler'
 import type { CrawlEntry, CrawlState } from '@/services/crawler'
 
@@ -58,9 +57,7 @@ export const useCrawlerStore = defineStore('crawler', () => {
   function setLanguage(lang: 'en' | 'cn') {
     language.value = lang
     localStorage.setItem(LANG_KEY, lang)
-    // Reset pagination
     page.value = 1
-    // Refetch data for new language
     fetchEntries()
     fetchStatus()
   }
@@ -142,41 +139,6 @@ export const useCrawlerStore = defineStore('crawler', () => {
     return []
   }
 
-  async function startCrawl(): Promise<boolean> {
-    loading.value = true
-    error.value = ''
-
-    const res = await triggerCrawler(language.value)
-
-    loading.value = false
-
-    if (res.ok) {
-      state.value = res.data.state
-      // Start polling for completion
-      pollCrawlStatus()
-      return true
-    }
-
-    error.value = res.error
-    return false
-  }
-
-  /**
-   * Poll crawl status every 3 seconds until crawl completes.
-   */
-  async function pollCrawlStatus() {
-    const poll = async () => {
-      await fetchStatus()
-      if (state.value?.status === 'crawling') {
-        setTimeout(poll, 3000)
-      } else {
-        // Crawl finished — refresh entries
-        await fetchEntries()
-      }
-    }
-    setTimeout(poll, 3000)
-  }
-
   async function init() {
     await Promise.all([fetchEntries(), fetchStatus()])
   }
@@ -213,7 +175,6 @@ export const useCrawlerStore = defineStore('crawler', () => {
     fetchStatus,
     fetchOverallStatus,
     fetchSeries,
-    startCrawl,
     init,
   }
 })

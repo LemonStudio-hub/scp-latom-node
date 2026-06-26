@@ -54,13 +54,6 @@ export interface CrawlerSeriesResponse {
   total: number
 }
 
-export interface CrawlerTriggerResponse {
-  success: boolean
-  language: string
-  message: string
-  state: CrawlState
-}
-
 export interface CrawlerEntriesParams {
   class?: string
   q?: string
@@ -134,13 +127,4 @@ export function fetchCrawlerSeries(
   series: number
 ): Promise<ApiResult<CrawlerSeriesResponse>> {
   return request('GET', `/api/crawler/${lang}/series/${series}`)
-}
-
-/**
- * Trigger a new crawl for a specific language.
- */
-export function triggerCrawler(
-  lang: 'en' | 'cn'
-): Promise<ApiResult<CrawlerTriggerResponse>> {
-  return request('POST', `/api/crawler/${lang}/crawl`)
 }

@@ -39,10 +39,6 @@ function setLanguage(lang: 'en' | 'cn') {
   crawler.setLanguage(lang)
 }
 
-function triggerCrawl() {
-  crawler.startCrawl()
-}
-
 onMounted(() => {
   crawler.init()
 })
@@ -73,16 +69,8 @@ onMounted(() => {
       </button>
       <div class="crawl-info">
         <span v-if="crawler.state" class="crawl-status" :class="crawler.state.status">
-          {{ crawler.state.status === 'crawling' ? '⟳' : crawler.state.status === 'error' ? '✗' : '✓' }}
-          {{ crawler.state.totalEntries }} entries
+          {{ crawler.state.status === 'crawling' ? '⟳ Syncing…' : crawler.state.status === 'error' ? '✗ Sync error' : '' }}
         </span>
-        <button
-          class="crawl-btn"
-          :disabled="crawler.isCrawling"
-          @click="triggerCrawl"
-        >
-          {{ crawler.isCrawling ? 'Crawling…' : 'Refresh' }}
-        </button>
       </div>
     </div>
 
@@ -101,9 +89,8 @@ onMounted(() => {
     <!-- No Data State -->
     <div v-else-if="!crawler.hasData && !crawler.loading" class="empty-state">
       <span class="empty-icon">🔍</span>
-      <p>No crawl data available.</p>
-      <p class="empty-hint">Click "Refresh" to crawl the SCP wiki index.</p>
-      <button class="crawl-btn primary" @click="triggerCrawl">Start Crawl</button>
+      <p>No data available yet.</p>
+      <p class="empty-hint">The index is being prepared. Please check back later.</p>
     </div>
 
     <!-- Data Loaded -->
@@ -139,7 +126,7 @@ onMounted(() => {
           {{ t('catalog.entriesFound', { count: crawler.total }) }}
         </span>
         <span v-if="crawler.lastCrawlTime" class="last-crawl">
-          Last crawled: {{ crawler.lastCrawlTime.toLocaleString() }}
+          Updated: {{ crawler.lastCrawlTime.toLocaleString() }}
         </span>
       </div>
 
@@ -266,33 +253,6 @@ onMounted(() => {
 
 .crawl-status.error {
   color: var(--color-danger);
-}
-
-.crawl-btn {
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.crawl-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.crawl-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.crawl-btn.primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--text-inverse);
 }
 
 /* Filters */
@@ -552,7 +512,7 @@ onMounted(() => {
 
   .crawl-info {
     margin-left: 0;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 }
 </style>
