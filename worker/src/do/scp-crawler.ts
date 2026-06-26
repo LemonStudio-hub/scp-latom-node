@@ -360,6 +360,7 @@ export class ScpCrawlerDo {
 
       if (!html) {
         hasErrors = true
+        lastError = `Failed to fetch ${pageSlug}`
         continue
       }
 
@@ -429,12 +430,14 @@ export class ScpCrawlerDo {
         clearTimeout(timeout)
 
         if (response.status === 429) {
+          console.warn(`[ScpCrawlerDo] Rate limited on ${url}, attempt ${attempt}`)
           const backoffMs = Math.pow(2, attempt + 1) * 1000
           await delay(backoffMs)
           continue
         }
 
         if (!response.ok) {
+          console.warn(`[ScpCrawlerDo] HTTP ${response.status} for ${url}, attempt ${attempt}`)
           if (attempt < MAX_RETRIES) {
             await delay(1000 * (attempt + 1))
             continue
@@ -442,8 +445,12 @@ export class ScpCrawlerDo {
           return null
         }
 
-        return await response.text()
+        const html = await response.text()
+        console.log(`[ScpCrawlerDo] Fetched ${url}: ${html.length} bytes`)
+        return html
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn(`[ScpCrawlerDo] Fetch error for ${url} (attempt ${attempt}): ${msg}`)
         if (attempt < MAX_RETRIES) {
           await delay(1000 * (attempt + 1))
           continue
