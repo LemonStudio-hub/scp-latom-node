@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getLoggerFromContext } from '../utils/logger'
 import type { Env } from '../types'
 
 const crawler = new Hono<{ Bindings: Env }>()
@@ -187,6 +188,7 @@ crawler.get('/:lang/entry/:scpNumber', async (c) => {
  *   - limit: Max entries to collect (0 or omit = unlimited)
  */
 crawler.post('/:lang/crawl', async (c) => {
+  const logger = getLoggerFromContext(c).child({ category: 'crawler' })
   const lang = c.req.param('lang')
   if (lang !== 'en' && lang !== 'cn') {
     return c.json({ success: false, error: "Invalid language. Use 'en' or 'cn'" }, 400)
@@ -198,11 +200,13 @@ crawler.post('/:lang/crawl', async (c) => {
   const path = `/crawl${searchParams ? `?${searchParams}` : ''}`
 
   try {
+    logger.info(`Triggering crawl for language: ${lang}`)
     const response = await forwardToDo(c.env, lang, path, { method: 'POST' })
     const data = await response.json()
     return c.json(data, response.status as 200)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    logger.error(`Failed to trigger crawl for ${lang}`, { error: message })
     return c.json({ success: false, error: `Failed to trigger crawl: ${message}` }, 503)
   }
 })

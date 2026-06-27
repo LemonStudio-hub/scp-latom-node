@@ -103,3 +103,27 @@ CREATE TABLE IF NOT EXISTS proposal_votes (
 
 CREATE INDEX IF NOT EXISTS idx_proposal_votes_proposal ON proposal_votes(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_proposal_votes_user ON proposal_votes(user_id);
+
+-- ─── System Logs ──────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS system_logs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp   TEXT NOT NULL DEFAULT (datetime('now')),
+  level       TEXT NOT NULL CHECK (level IN ('debug', 'info', 'warn', 'error')),
+  message     TEXT NOT NULL,
+  context     TEXT,
+  request_id  TEXT,
+  user_id     INTEGER,
+  source      TEXT NOT NULL CHECK (source IN ('server', 'client')),
+  category    TEXT,
+  path        TEXT,
+  user_agent  TEXT,
+  ip          TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
+CREATE INDEX IF NOT EXISTS idx_system_logs_timestamp ON system_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_system_logs_source ON system_logs(source);
+CREATE INDEX IF NOT EXISTS idx_system_logs_request_id ON system_logs(request_id);
+CREATE INDEX IF NOT EXISTS idx_system_logs_category ON system_logs(category);

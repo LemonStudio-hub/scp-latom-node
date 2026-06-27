@@ -1,10 +1,13 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { requestLogger } from './middleware/logger'
+import { Logger } from './utils/logger'
 import authRoutes from './routes/auth'
 import crawlerRoutes from './routes/crawler'
 import historyRoutes from './routes/history'
 import proposalRoutes from './routes/proposals'
 import bookmarkRoutes from './routes/bookmarks'
+import logRoutes from './routes/logs'
 import type { Env } from './types'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -34,6 +37,12 @@ app.use('/api/*', cors({
   maxAge: 86400,
 }))
 
+// Request logging (attaches logger to context)
+app.use('/api/*', async (c, next) => {
+  const middleware = requestLogger(c.env)
+  return middleware(c as any, next)
+})
+
 // Health check
 app.get('/api/health', (c) => {
   return c.json({
@@ -59,6 +68,9 @@ app.route('/api/proposals', proposalRoutes)
 // Bookmark routes
 app.route('/api/bookmarks', bookmarkRoutes)
 
+// Client log ingestion
+app.route('/api/logs', logRoutes)
+
 // 404 fallback
 app.notFound((c) => {
   return c.json({ success: false, error: 'Not found' }, 404)
@@ -66,7 +78,13 @@ app.notFound((c) => {
 
 // Global error handler
 app.onError((err, c) => {
-  console.error('Unhandled error:', err)
+  const logger = (c as any).get?.('logger') as Logger | undefined
+  if (logger) {
+    logger.error('Unhandled error', { error: err })
+  } else {
+    // Fallback when middleware didn't run (shouldn't happen on /api/* paths)
+    console.error('Unhandled error:', err)
+  }
   return c.json({ success: false, error: 'Internal server error' }, 500)
 })
 

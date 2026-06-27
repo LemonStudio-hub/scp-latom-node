@@ -2,6 +2,7 @@ export interface Env {
   DB: D1Database
   JWT_SECRET: string
   CORS_ORIGINS: string
+  LOG_LEVEL?: string
   SCP_EN_CRAWLER: DurableObjectNamespace
   SCP_CN_CRAWLER: DurableObjectNamespace
 }

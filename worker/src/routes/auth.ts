@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../utils/password'
 import { signToken } from '../utils/jwt'
 import { authMiddleware } from '../middleware/auth'
+import { getLoggerFromContext } from '../utils/logger'
 import type { Env, User, UserPublic } from '../types'
 
 const auth = new Hono<{ Bindings: Env }>()
@@ -37,6 +38,7 @@ function toPublic(user: User): UserPublic {
 
 // POST /api/auth/register
 auth.post('/register', async (c) => {
+  const logger = getLoggerFromContext(c).child({ category: 'auth' })
   const body = await c.req.json<{ codename?: string; password?: string }>()
   const codename = body.codename?.trim()
   const password = body.password ?? ''
@@ -50,6 +52,7 @@ auth.post('/register', async (c) => {
   // Check if codename exists
   const existing = await c.env.DB.prepare('SELECT id FROM users WHERE codename = ?').bind(codename).first()
   if (existing) {
+    logger.warn('Registration failed: codename already taken', { codename })
     return c.json({ success: false, error: 'Codename already taken' }, 409)
   }
 
@@ -61,6 +64,7 @@ auth.post('/register', async (c) => {
     .first<User>()
 
   if (!result) {
+    logger.error('Registration failed: DB insert returned no result', { codename })
     return c.json({ success: false, error: 'Registration failed' }, 500)
   }
 
@@ -69,11 +73,13 @@ auth.post('/register', async (c) => {
     c.env.JWT_SECRET
   )
 
+  logger.info('User registered', { userId: result.id, codename: result.codename })
   return c.json({ success: true, user: toPublic(result), token }, 201)
 })
 
 // POST /api/auth/login
 auth.post('/login', async (c) => {
+  const logger = getLoggerFromContext(c).child({ category: 'auth' })
   const body = await c.req.json<{ codename?: string; password?: string }>()
   const codename = body.codename?.trim()
   const password = body.password ?? ''
@@ -87,11 +93,13 @@ auth.post('/login', async (c) => {
     .first<User>()
 
   if (!user) {
+    logger.warn('Login failed: user not found', { codename })
     return c.json({ success: false, error: 'Invalid codename or password' }, 401)
   }
 
   const valid = await verifyPassword(password, user.password)
   if (!valid) {
+    logger.warn('Login failed: invalid password', { codename, userId: user.id })
     return c.json({ success: false, error: 'Invalid codename or password' }, 401)
   }
 
@@ -100,6 +108,7 @@ auth.post('/login', async (c) => {
     c.env.JWT_SECRET
   )
 
+  logger.info('User logged in', { userId: user.id, codename: user.codename })
   return c.json({ success: true, user: toPublic(user), token })
 })
 
@@ -119,6 +128,7 @@ auth.get('/me', authMiddleware, async (c) => {
 
 // PUT /api/auth/profile
 auth.put('/profile', authMiddleware, async (c) => {
+  const logger = getLoggerFromContext(c).child({ category: 'auth' })
   const payload = c.get('user')
   const body = await c.req.json<{ codename?: string; password?: string; newPassword?: string }>()
 
@@ -137,6 +147,7 @@ auth.put('/profile', authMiddleware, async (c) => {
     }
     const valid = await verifyPassword(body.password, user.password)
     if (!valid) {
+      logger.warn('Profile update failed: incorrect current password', { userId: user.id })
       return c.json({ success: false, error: 'Current password is incorrect' }, 401)
     }
     const pwdErr = validatePassword(body.newPassword)
@@ -165,9 +176,11 @@ auth.put('/profile', authMiddleware, async (c) => {
     .first<User>()
 
   if (!updated) {
+    logger.error('Profile update failed: DB update returned no result', { userId: user.id })
     return c.json({ success: false, error: 'Update failed' }, 500)
   }
 
+  logger.info('Profile updated', { userId: updated.id, codename: updated.codename })
   return c.json({ success: true, user: toPublic(updated) })
 })
 

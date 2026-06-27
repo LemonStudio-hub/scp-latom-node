@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth'
+import { getLoggerFromContext } from '../utils/logger'
 import type { Env, Proposal, ProposalPublic, ProposalVote } from '../types'
 
 const proposals = new Hono<{ Bindings: Env }>()
@@ -178,6 +179,7 @@ proposals.get('/:id', async (c) => {
 // Create proposal (auth required, max 2 per day)
 
 proposals.post('/', authMiddleware, async (c) => {
+  const logger = getLoggerFromContext(c).child({ category: 'system' })
   const payload = c.get('user')
   const body = await c.req.json<{ title?: string; content?: string; category?: string }>()
 
@@ -201,6 +203,7 @@ proposals.post('/', authMiddleware, async (c) => {
   ).bind(payload.sub).first<{ count: number }>()
 
   if ((todayCount?.count ?? 0) >= MAX_PROPOSALS_PER_DAY) {
+    logger.warn('Proposal creation blocked: daily limit reached', { userId: payload.sub })
     return c.json({ success: false, error: `Daily limit reached (${MAX_PROPOSALS_PER_DAY} proposals per day)` }, 429)
   }
 
@@ -208,8 +211,12 @@ proposals.post('/', authMiddleware, async (c) => {
     'INSERT INTO proposals (user_id, title, content, category) VALUES (?, ?, ?, ?) RETURNING *'
   ).bind(payload.sub, title, content, category).first<Proposal>()
 
-  if (!result) return c.json({ success: false, error: 'Failed to create proposal' }, 500)
+  if (!result) {
+    logger.error('Proposal creation failed: DB insert returned no result', { userId: payload.sub })
+    return c.json({ success: false, error: 'Failed to create proposal' }, 500)
+  }
 
+  logger.info('Proposal created', { proposalId: result.id, userId: payload.sub, category })
   return c.json({
     success: true,
     proposal: {
@@ -233,6 +240,7 @@ proposals.post('/', authMiddleware, async (c) => {
 // Vote on proposal (auth required, one vote per proposal, immutable)
 
 proposals.post('/:id/vote', authMiddleware, async (c) => {
+  const logger = getLoggerFromContext(c).child({ category: 'system' })
   const payload = c.get('user')
   const id = parseInt(c.req.param('id') ?? '', 10)
   if (isNaN(id)) return c.json({ success: false, error: 'Invalid proposal ID' }, 400)
@@ -258,6 +266,7 @@ proposals.post('/:id/vote', authMiddleware, async (c) => {
   ).bind(id, payload.sub).first<ProposalVote>()
 
   if (existingVote) {
+    logger.warn('Duplicate vote attempt', { proposalId: id, userId: payload.sub })
     return c.json({ success: false, error: 'You have already voted on this proposal. Votes cannot be changed.' }, 409)
   }
 
@@ -265,6 +274,8 @@ proposals.post('/:id/vote', authMiddleware, async (c) => {
   await c.env.DB.prepare(
     'INSERT INTO proposal_votes (proposal_id, user_id, vote) VALUES (?, ?, ?)'
   ).bind(id, payload.sub, vote).run()
+
+  logger.info('Vote recorded', { proposalId: id, userId: payload.sub, vote })
 
   // Get updated vote counts
   const voteCounts = await c.env.DB.prepare(
