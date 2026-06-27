@@ -45,6 +45,34 @@ CREATE TABLE IF NOT EXISTS crawl_state (
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- ─── Browsing History ─────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS browsing_history (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL,
+  language     TEXT NOT NULL CHECK (language IN ('en', 'cn')),
+  scp_number   INTEGER NOT NULL,
+  name         TEXT NOT NULL DEFAULT '',
+  object_class TEXT NOT NULL DEFAULT 'Unknown',
+  visited_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, language, scp_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_history_user ON browsing_history(user_id, visited_at);
+
+-- ─── Bookmarks ────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL,
+  scp_number  INTEGER NOT NULL,
+  language    TEXT NOT NULL CHECK (language IN ('en', 'cn')),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, scp_number, language)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
+
 -- ─── Proposals ─────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS proposals (

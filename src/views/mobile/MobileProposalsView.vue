@@ -341,6 +341,7 @@ onMounted(() => {
   line-height: var(--leading-relaxed);
   margin-bottom: var(--space-sm);
   white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .m-view-btn {

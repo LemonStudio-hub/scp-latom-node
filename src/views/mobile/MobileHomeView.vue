@@ -1,19 +1,27 @@
 <script setup lang="ts">
-import { siteStats } from '@/data/entries'
-import { entries } from '@/data/entries'
+import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useCrawlerStore } from '@/stores/crawler'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
-import { useI18n } from 'vue-i18n'
+import type { ObjectClass } from '@/types'
 
 const { t } = useI18n()
-const recent = entries.slice(0, 4)
+const crawler = useCrawlerStore()
 
-const stats = [
-  { labelKey: 'stats.totalEntries', value: siteStats.totalEntries, color: 'var(--color-primary)' },
-  { labelKey: 'stats.safe', value: siteStats.byClass.Safe, color: 'var(--class-safe)' },
-  { labelKey: 'stats.keter', value: siteStats.byClass.Keter, color: 'var(--class-keter)' },
-  { labelKey: 'stats.documents', value: siteStats.documents, color: 'var(--color-accent)' },
-]
+const recent = computed(() => crawler.entries.slice(0, 4))
+
+const stats = computed(() => [
+  { labelKey: 'stats.totalEntries', value: crawler.total, color: 'var(--color-primary)' },
+  { labelKey: 'stats.safe', value: crawler.classDistribution?.['Safe'] ?? 0, color: 'var(--class-safe)' },
+  { labelKey: 'stats.keter', value: crawler.classDistribution?.['Keter'] ?? 0, color: 'var(--class-keter)' },
+])
+
+onMounted(() => {
+  if (!crawler.hasData && !crawler.loading) {
+    crawler.init()
+  }
+})
 </script>
 
 <template>
@@ -60,22 +68,39 @@ const stats = [
         </router-link>
       </div>
 
-      <div class="m-entry-list">
+      <!-- Loading -->
+      <div v-if="crawler.loading && !crawler.hasData" class="m-loading">
+        <div v-for="i in 4" :key="i" class="m-skeleton m-skeleton-card" />
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="crawler.error && !crawler.hasData" class="m-error">
+        <span class="m-error-icon">⚠</span>
+        <p>{{ crawler.error }}</p>
+        <button class="m-retry-btn" @click="crawler.init()">Retry</button>
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="!recent.length" class="m-empty">
+        <span class="m-empty-icon">∅</span>
+        <p>{{ t('catalog.empty') }}</p>
+      </div>
+
+      <!-- Entries -->
+      <div v-else class="m-entry-list">
         <router-link
           v-for="entry in recent"
-          :key="entry.id"
-          :to="`/entry/${entry.id}`"
+          :key="entry.scpNumber"
+          :to="'/entry/' + crawler.language + '/' + entry.scpNumber"
           class="m-entry-card"
         >
           <div class="m-entry-top">
-            <span class="m-entry-id">SCP-{{ String(entry.number).padStart(3, '0') }}</span>
-            <Badge :variant="entry.objectClass.toLowerCase() as any">{{ t(`classes.${entry.objectClass}`) }}</Badge>
+            <span class="m-entry-id">SCP-{{ String(entry.scpNumber).padStart(3, '0') }}</span>
+            <Badge :variant="entry.objectClass.toLowerCase() as any">{{ entry.objectClass }}</Badge>
           </div>
-          <h3 class="m-entry-name">{{ t(`entries.${entry.id}.name`) }}</h3>
-          <p class="m-entry-summary">{{ t(`entries.${entry.id}.summary`) }}</p>
+          <h3 class="m-entry-name">{{ entry.name || `SCP-${entry.scpNumber}` }}</h3>
           <div class="m-entry-footer">
-            <ClassBar :object-class="entry.objectClass" />
-            <span class="m-entry-date">{{ entry.date }}</span>
+            <ClassBar :object-class="entry.objectClass as ObjectClass" />
           </div>
         </router-link>
       </div>
@@ -292,5 +317,57 @@ const stats = [
   font-size: var(--text-xs);
   font-family: var(--font-mono);
   color: var(--text-tertiary);
+}
+
+/* Loading */
+.m-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.m-skeleton {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.m-skeleton-card { height: 120px; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Error & Empty */
+.m-error, .m-empty {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-lg);
+}
+
+.m-error-icon, .m-empty-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.m-error-icon { color: var(--color-danger); }
+.m-empty-icon { color: var(--text-tertiary); }
+
+.m-error p, .m-empty p {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.m-retry-btn {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  border: none;
+  color: var(--text-inverse);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 </style>

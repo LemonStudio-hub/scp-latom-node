@@ -2,7 +2,9 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import authRoutes from './routes/auth'
 import crawlerRoutes from './routes/crawler'
+import historyRoutes from './routes/history'
 import proposalRoutes from './routes/proposals'
+import bookmarkRoutes from './routes/bookmarks'
 import type { Env } from './types'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -48,8 +50,14 @@ app.route('/api/auth', authRoutes)
 // Crawler routes
 app.route('/api/crawler', crawlerRoutes)
 
+// History routes
+app.route('/api/history', historyRoutes)
+
 // Proposal routes
 app.route('/api/proposals', proposalRoutes)
+
+// Bookmark routes
+app.route('/api/bookmarks', bookmarkRoutes)
 
 // 404 fallback
 app.notFound((c) => {

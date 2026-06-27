@@ -80,6 +80,24 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.proposals', requiresAuth: true },
   },
   {
+    path: '/activity',
+    name: 'activity',
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/ActivityView.vue'),
+      mobile: () => import('@/views/mobile/MobileActivityView.vue'),
+    },
+    meta: { titleKey: 'nav.activity', requiresAuth: true },
+  },
+  {
+    path: '/history',
+    redirect: '/activity',
+  },
+  {
+    path: '/bookmarks',
+    redirect: '/activity',
+  },
+  {
     path: '/about',
     name: 'about',
     component: DeviceView,

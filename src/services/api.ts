@@ -36,3 +36,7 @@ export function apiPost<T = unknown>(path: string, body?: unknown, token?: strin
 export function apiPut<T = unknown>(path: string, body?: unknown, token?: string) {
   return request<T>('PUT', path, body, token)
 }
+
+export function apiDelete<T = unknown>(path: string, token?: string) {
+  return request<T>('DELETE', path, undefined, token)
+}

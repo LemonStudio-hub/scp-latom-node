@@ -10,6 +10,8 @@ const navItems = [
   { path: '/', icon: 'home', labelKey: 'nav.home' },
   { path: '/catalog', icon: 'catalog', labelKey: 'nav.catalog' },
   { path: '/documents', icon: 'documents', labelKey: 'nav.documents' },
+  { path: '/proposals', icon: 'proposals', labelKey: 'nav.proposals' },
+  { path: '/activity', icon: 'activity', labelKey: 'nav.activity' },
   { path: '/about', icon: 'about', labelKey: 'nav.about' },
   { path: '/profile', icon: 'profile', labelKey: 'auth.profile' },
 ]
@@ -47,6 +49,17 @@ function isActive(path: string): boolean {
         <polyline points="14 2 14 8 20 8" />
         <line x1="16" y1="13" x2="8" y2="13" />
         <line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+      <!-- Proposals -->
+      <svg v-else-if="item.icon === 'proposals'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2l10 10-10 10L2 12z" />
+      </svg>
+      <!-- Activity -->
+      <svg v-else-if="item.icon === 'activity'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
       <!-- About -->
       <svg v-else-if="item.icon === 'about'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -91,11 +104,11 @@ function isActive(path: string): boolean {
   gap: 2px;
   text-decoration: none;
   color: var(--text-tertiary);
-  padding: 6px 12px;
+  padding: 6px 8px;
   border-radius: var(--radius-md);
   transition: color var(--transition-fast);
   position: relative;
-  min-width: 48px;
+  min-width: 40px;
 }
 
 .nav-item:active {

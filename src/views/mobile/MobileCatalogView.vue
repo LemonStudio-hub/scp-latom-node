@@ -1,38 +1,47 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { entries } from '@/data/entries'
+import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useCrawlerStore } from '@/stores/crawler'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
-import { useI18n } from 'vue-i18n'
 import type { ObjectClass } from '@/types'
 
 const { t } = useI18n()
+const crawler = useCrawlerStore()
+
 const searchQuery = ref('')
 const activeClass = ref<ObjectClass | null>(null)
 
 const objectClasses: ObjectClass[] = ['Safe', 'Euclid', 'Keter', 'Thaumiel', 'Apollyon', 'Neutralized']
 
-const filtered = computed(() => {
-  let result = entries
-  if (activeClass.value) {
-    result = result.filter((e) => e.objectClass === activeClass.value)
-  }
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
-    result = result.filter(
-      (e) =>
-        e.name.toLowerCase().includes(q) ||
-        e.id.toLowerCase().includes(q) ||
-        t(`entries.${e.id}.name`).toLowerCase().includes(q) ||
-        t(`entries.${e.id}.summary`).toLowerCase().includes(q)
-    )
-  }
-  return result
+// Debounced search
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, (val) => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    crawler.setSearchQuery(val)
+  }, 300)
 })
 
 function toggleClass(cls: ObjectClass) {
-  activeClass.value = activeClass.value === cls ? null : cls
+  if (activeClass.value === cls) {
+    activeClass.value = null
+    crawler.setClassFilter(null)
+  } else {
+    activeClass.value = cls
+    crawler.setClassFilter(cls)
+  }
 }
+
+function setLanguage(lang: 'en' | 'cn') {
+  activeClass.value = null
+  searchQuery.value = ''
+  crawler.setLanguage(lang)
+}
+
+onMounted(() => {
+  crawler.init()
+})
 </script>
 
 <template>
@@ -46,6 +55,15 @@ function toggleClass(cls: ObjectClass) {
         </svg>
         <input v-model="searchQuery" type="text" :placeholder="t('catalog.searchPlaceholder')" class="m-search-input" />
       </div>
+    </div>
+
+    <!-- Language Selector -->
+    <div class="m-lang-bar">
+      <button class="m-lang-btn" :class="{ active: crawler.language === 'en' }" @click="setLanguage('en')">EN</button>
+      <button class="m-lang-btn" :class="{ active: crawler.language === 'cn' }" @click="setLanguage('cn')">CN</button>
+      <span v-if="crawler.state" class="m-crawl-status" :class="crawler.state.status">
+        {{ crawler.state.status === 'crawling' ? '⟳' : '' }}
+      </span>
     </div>
 
     <!-- Class Filter Pills -->
@@ -63,34 +81,53 @@ function toggleClass(cls: ObjectClass) {
       </div>
     </div>
 
-    <!-- Results -->
-    <div class="m-results-info">
-      <span>{{ t('catalog.entriesFound', { count: filtered.length }) }}</span>
+    <!-- Loading -->
+    <div v-if="crawler.loading && !crawler.hasData" class="m-loading">
+      <div v-for="i in 6" :key="i" class="m-skeleton m-skeleton-card" />
     </div>
 
-    <div class="m-entry-list">
-      <router-link
-        v-for="entry in filtered"
-        :key="entry.id"
-        :to="`/entry/${entry.id}`"
-        class="m-entry-card"
-      >
-        <div class="m-entry-top">
-          <div class="m-entry-id-wrap">
-            <ClassBar :object-class="entry.objectClass" />
-            <span class="m-entry-id">SCP-{{ String(entry.number).padStart(3, '0') }}</span>
-          </div>
-          <Badge :variant="entry.objectClass.toLowerCase() as any">{{ t(`classes.${entry.objectClass}`) }}</Badge>
-        </div>
-        <h3 class="m-entry-name">{{ t(`entries.${entry.id}.name`) }}</h3>
-        <p class="m-entry-summary">{{ t(`entries.${entry.id}.summary`) }}</p>
-      </router-link>
+    <!-- Error -->
+    <div v-else-if="crawler.error && !crawler.hasData" class="m-error">
+      <span class="m-error-icon">⚠</span>
+      <p>{{ crawler.error }}</p>
+      <button class="m-retry-btn" @click="crawler.fetchEntries()">Retry</button>
     </div>
 
-    <div v-if="filtered.length === 0" class="m-empty">
+    <!-- No Data -->
+    <div v-else-if="!crawler.hasData && !crawler.loading" class="m-empty">
       <span class="m-empty-icon">∅</span>
-      <p>{{ t('catalog.empty') }}</p>
+      <p>No data available yet.</p>
     </div>
+
+    <!-- Results -->
+    <template v-else>
+      <div class="m-results-info">
+        <span>{{ t('catalog.entriesFound', { count: crawler.total }) }}</span>
+      </div>
+
+      <div class="m-entry-list">
+        <router-link
+          v-for="entry in crawler.entries"
+          :key="entry.scpNumber"
+          :to="'/entry/' + crawler.language + '/' + entry.scpNumber"
+          class="m-entry-card"
+        >
+          <div class="m-entry-top">
+            <div class="m-entry-id-wrap">
+              <ClassBar :object-class="entry.objectClass as ObjectClass" />
+              <span class="m-entry-id">SCP-{{ String(entry.scpNumber).padStart(3, '0') }}</span>
+            </div>
+            <Badge :variant="entry.objectClass.toLowerCase() as any">{{ entry.objectClass }}</Badge>
+          </div>
+          <h3 class="m-entry-name">{{ entry.name || `SCP-${entry.scpNumber}` }}</h3>
+        </router-link>
+      </div>
+
+      <div v-if="crawler.entries.length === 0" class="m-empty">
+        <span class="m-empty-icon">∅</span>
+        <p>{{ t('catalog.empty') }}</p>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -250,5 +287,89 @@ function toggleClass(cls: ObjectClass) {
 .m-empty p {
   color: var(--text-tertiary);
   font-size: var(--text-sm);
+}
+
+/* Language Selector */
+.m-lang-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.m-lang-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.m-lang-btn.active {
+  background: var(--color-primary-muted);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.m-crawl-status {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.m-crawl-status.crawling { color: var(--color-accent); }
+
+/* Loading */
+.m-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.m-skeleton {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.m-skeleton-card { height: 100px; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Error */
+.m-error {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-lg);
+}
+
+.m-error-icon {
+  font-size: 2.5rem;
+  color: var(--color-danger);
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.m-error p {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.m-retry-btn {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  border: none;
+  color: var(--text-inverse);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 </style>

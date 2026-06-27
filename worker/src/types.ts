@@ -76,6 +76,36 @@ export interface EntryContentResponse {
   error?: string
 }
 
+// ─── History Types ─────────────────────────────────────────
+
+export interface HistoryEntry {
+  id: number
+  user_id: number
+  language: string
+  scp_number: number
+  name: string
+  object_class: string
+  visited_at: string
+}
+
+// ─── Bookmark Types ───────────────────────────────────────
+
+export interface Bookmark {
+  id: number
+  user_id: number
+  scp_number: number
+  language: string
+  created_at: string
+}
+
+export interface BookmarkPublic {
+  scpNumber: number
+  language: string
+  name: string | null
+  objectClass: string | null
+  createdAt: string
+}
+
 // ─── Proposal Types ────────────────────────────────────────
 
 export interface Proposal {

@@ -3,12 +3,19 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchEntryContent, type EntryContentResponse } from '@/services/crawler'
+import { useAuthStore } from '@/stores/auth'
+import { useUserActivityStore } from '@/stores/userActivity'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
 import type { ObjectClass } from '@/types'
 
 const { t } = useI18n()
 const route = useRoute()
+const auth = useAuthStore()
+const activityStore = useUserActivityStore()
+
+const bookmarked = ref(false)
+const bookmarkLoading = ref(false)
 
 const lang = computed(() => route.params.lang as 'en' | 'cn')
 const scpNumber = computed(() => parseInt(route.params.scpNumber as string, 10))
@@ -35,6 +42,7 @@ async function loadContent() {
 
   if (res.data.status === 'cached' || res.data.status === 'fetched') {
     loading.value = false
+    recordVisit(res.data)
     return
   }
 
@@ -45,6 +53,16 @@ async function loadContent() {
 
   loading.value = false
   error.value = res.data.error || 'Failed to fetch entry content'
+}
+
+function recordVisit(entry: EntryContentResponse) {
+  if (!auth.isAuthenticated) return
+  activityStore.recordVisit({
+    language: lang.value,
+    scpNumber: scpNumber.value,
+    name: entry.name,
+    objectClass: entry.objectClass,
+  })
 }
 
 async function pollForContent() {
@@ -60,6 +78,7 @@ async function pollForContent() {
 
   if (res.data.status === 'cached' || res.data.status === 'fetched') {
     loading.value = false
+    recordVisit(res.data)
     return
   }
 
@@ -77,6 +96,14 @@ function retry() {
   loadContent()
 }
 
+async function toggleBookmark() {
+  if (!auth.isAuthenticated) return
+  bookmarkLoading.value = true
+  const result = await activityStore.toggleBookmark(lang.value, scpNumber.value)
+  if (result) bookmarked.value = !bookmarked.value
+  bookmarkLoading.value = false
+}
+
 onMounted(() => {
   if (!scpNumber.value || isNaN(scpNumber.value)) {
     error.value = 'Invalid SCP number'
@@ -84,6 +111,13 @@ onMounted(() => {
     return
   }
   loadContent()
+
+  // Check bookmark status for authenticated users
+  if (auth.isAuthenticated) {
+    activityStore.checkBookmark(lang.value, scpNumber.value).then((result: boolean) => {
+      bookmarked.value = result
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -136,6 +170,18 @@ onUnmounted(() => {
           <Badge v-if="data.objectClass" :variant="data.objectClass.toLowerCase() as any">
             {{ data.objectClass }}
           </Badge>
+          <button
+            v-if="auth.isAuthenticated"
+            class="m-bookmark-btn"
+            :class="{ active: bookmarked }"
+            :disabled="bookmarkLoading"
+            :title="bookmarked ? t('bookmarks.remove') : t('bookmarks.add')"
+            @click="toggleBookmark"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </button>
         </div>
         <h1 class="m-entry-title">
           <span class="m-entry-id">{{ scpId }}</span>
@@ -184,6 +230,32 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+.m-bookmark-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-left: auto;
+}
+
+.m-bookmark-btn:hover,
+.m-bookmark-btn.active {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.m-bookmark-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .m-entry-title {
   font-size: clamp(1.25rem, 5vw, 1.75rem);
   line-height: 1.2;
@@ -226,6 +298,8 @@ onUnmounted(() => {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--border-subtle);
+  overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 /* ─── Loading ─── */
@@ -249,12 +323,12 @@ onUnmounted(() => {
 }
 
 .m-skeleton-title {
-  width: 250px;
+  width: min(250px, 80%);
   height: 30px;
 }
 
 .m-skeleton-sub {
-  width: 150px;
+  width: min(150px, 50%);
   height: 18px;
   margin-bottom: var(--space-sm);
 }

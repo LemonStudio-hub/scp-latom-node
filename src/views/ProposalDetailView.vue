@@ -186,6 +186,7 @@ onMounted(() => {
   color: var(--text-secondary);
   line-height: var(--leading-relaxed);
   white-space: pre-wrap;
+  overflow-wrap: break-word;
   margin-bottom: var(--space-xl);
 }
 
