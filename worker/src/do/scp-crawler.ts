@@ -1,6 +1,7 @@
 import type { CrawlEntry, CrawlState, Env, EntryContentResponse, SyncResult } from '../types'
-import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl, cleanEntryHtml, extractObjectClassFromEntryPage } from './parser'
+import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl, cleanEntryHtml, extractObjectClassFromEntryPage, buildClassMap, applyClassMap } from './parser'
 import { fetchPageLikeBrowser, humanDelay } from './http-client'
+import { Logger } from '../utils/logger'
 
 // ─── Constants ──────────────────────────────────────────────
 
@@ -47,11 +48,13 @@ export class ScpCrawlerDo {
   private state: DurableObjectState
   private env: Env
   private fetcher: typeof fetch
+  private logger: Logger
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state
     this.env = env
     this.fetcher = globalThis.fetch
+    this.logger = new Logger({ level: 'info', db: env.DB }).child({ category: 'crawler' })
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -100,11 +103,30 @@ export class ScpCrawlerDo {
           await this.crawlDaily(language)
         }
       }
+
+      // Purge system logs older than 30 days
+      await this.cleanupOldLogs()
     } catch (err) {
-      console.error('[ScpCrawlerDo] Alarm error:', err)
+      this.logger.error('Alarm error', { error: err })
     }
     // Re-arm alarm for the next fixed daily time
     await this.state.storage.setAlarm(getNextAlarmTime())
+  }
+
+  /**
+   * Delete system_logs entries older than 30 days to prevent unbounded growth.
+   */
+  private async cleanupOldLogs(): Promise<void> {
+    try {
+      const result = await this.env.DB.prepare(
+        "DELETE FROM system_logs WHERE created_at < datetime('now', '-30 days')"
+      ).run()
+      if (result.meta.changes > 0) {
+        this.logger.info(`Cleaned up ${result.meta.changes} old log entries`)
+      }
+    } catch {
+      // Silently ignore — cleanup is best-effort
+    }
   }
 
   // ─── Route Handlers ─────────────────────────────────────
@@ -326,7 +348,7 @@ export class ScpCrawlerDo {
 
       if (!result.ok || !result.html) {
         const errMsg = result.error ?? `HTTP ${result.status}`
-        console.error(`[ScpCrawlerDo] Failed to fetch entry scp-${scpNumber} (${language}): ${errMsg}`)
+        this.logger.error(`Failed to fetch entry scp-${scpNumber} (${language})`, { error: errMsg, scpNumber, language })
         await this.env.DB.prepare(
           `UPDATE scp_entries SET content_error = ?, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
         ).bind(errMsg, scpNumber, language).run()
@@ -340,7 +362,7 @@ export class ScpCrawlerDo {
       ).bind(cleaned, scpNumber, language).run()
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
-      console.error(`[ScpCrawlerDo] Error fetching entry scp-${scpNumber} (${language}):`, err)
+      this.logger.error(`Error fetching entry scp-${scpNumber} (${language})`, { error: err, scpNumber, language })
       await this.env.DB.prepare(
         `UPDATE scp_entries SET content_error = ?, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
       ).bind(errMsg, scpNumber, language).run()
@@ -424,7 +446,7 @@ export class ScpCrawlerDo {
       }
     }
 
-    console.log(`[ScpCrawlerDo] Backfill ${language}: ${updated}/${entries.length} entries updated`)
+    this.logger.info(`Backfill ${language}: ${updated}/${entries.length} entries updated`, { language, updated, total: entries.length })
     return updated
   }
 
@@ -612,6 +634,22 @@ export class ScpCrawlerDo {
       }
     }
 
+    // Resolve object classes from wiki tag pages (safe, euclid, keter, etc.)
+    if (fetchedEntries.length > 0) {
+      try {
+        const classMap = await buildClassMap({
+          language,
+          fetcher: this.fetcher,
+          timeoutMs: FETCH_TIMEOUT_MS,
+        })
+        applyClassMap(fetchedEntries, classMap)
+        const resolved = [...classMap.values()].length
+        this.logger.info(`Class map resolved ${resolved} entries from tag pages`, { language, resolved })
+      } catch (err) {
+        this.logger.warn('Failed to build class map, falling back to backfill', { error: err, language })
+      }
+    }
+
     // Change detection: compare fetched entries against D1
     const existing = await this.queryExistingEntries(language)
     const toUpsert: CrawlEntry[] = []
@@ -655,7 +693,10 @@ export class ScpCrawlerDo {
     const unknownCount = classDist['Unknown'] ?? 0
 
     const syncResult: SyncResult = { added, changed, unchanged }
-    console.log(`[ScpCrawlerDo] Daily crawl ${language}: +${added} ~${changed} =${unchanged} (${toUpsert.length} upserted) | total=${totalRow?.total ?? 0} unknown=${unknownCount}`)
+    this.logger.info(`Daily crawl ${language}: +${added} ~${changed} =${unchanged} (${toUpsert.length} upserted) | total=${totalRow?.total ?? 0} unknown=${unknownCount}`, {
+      language, added, changed, unchanged, upserted: toUpsert.length,
+      total: totalRow?.total ?? 0, unknown: unknownCount,
+    })
 
     await this.state.storage.put(STORAGE_KEY_LAST_CRAWL_MAP, lastCrawlMap)
 
@@ -731,6 +772,22 @@ export class ScpCrawlerDo {
       }
     }
 
+    // Resolve object classes from wiki tag pages (safe, euclid, keter, etc.)
+    if (collected.length > 0) {
+      try {
+        const classMap = await buildClassMap({
+          language,
+          fetcher: this.fetcher,
+          timeoutMs: FETCH_TIMEOUT_MS,
+        })
+        applyClassMap(collected, classMap)
+        const resolved = [...classMap.values()].length
+        this.logger.info(`Class map resolved ${resolved} entries from tag pages`, { language, resolved })
+      } catch (err) {
+        this.logger.warn('Failed to build class map, falling back to backfill', { error: err, language })
+      }
+    }
+
     // Write collected entries to D1
     if (collected.length > 0) {
       await this.upsertEntriesToD1(language, collected)
@@ -747,9 +804,12 @@ export class ScpCrawlerDo {
     const classDist = await this.getClassDistribution(language)
     const unknownCount = classDist['Unknown'] ?? 0
 
-    console.log(`[ScpCrawlerDo] Full crawl ${language}: collected=${collected.length} errors=${errors.length} | total=${totalRow?.total ?? 0} unknown=${unknownCount}`)
+    this.logger.info(`Full crawl ${language}: collected=${collected.length} errors=${errors.length} | total=${totalRow?.total ?? 0} unknown=${unknownCount}`, {
+      language, collected: collected.length, errors: errors.length,
+      total: totalRow?.total ?? 0, unknown: unknownCount,
+    })
     if (errors.length > 0) {
-      console.log(`[ScpCrawlerDo] Full crawl ${language} errors: ${errors.join('; ')}`)
+      this.logger.warn(`Full crawl ${language} errors: ${errors.join('; ')}`, { language, errorList: errors })
     }
 
     await this.state.storage.put(STORAGE_KEY_CURSOR, 0)
