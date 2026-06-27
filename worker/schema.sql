@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS scp_entries (
   series            INTEGER NOT NULL DEFAULT 1,
   content           TEXT,
   content_fetched_at TEXT,
+  content_error     TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(scp_number, language)

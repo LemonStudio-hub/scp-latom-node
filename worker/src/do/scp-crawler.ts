@@ -325,17 +325,25 @@ export class ScpCrawlerDo {
       })
 
       if (!result.ok || !result.html) {
-        console.error(`[ScpCrawlerDo] Failed to fetch entry scp-${scpNumber} (${language}): ${result.error ?? `HTTP ${result.status}`}`)
+        const errMsg = result.error ?? `HTTP ${result.status}`
+        console.error(`[ScpCrawlerDo] Failed to fetch entry scp-${scpNumber} (${language}): ${errMsg}`)
+        await this.env.DB.prepare(
+          `UPDATE scp_entries SET content_error = ?, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
+        ).bind(errMsg, scpNumber, language).run()
         return
       }
 
       const cleaned = cleanEntryHtml(result.html, baseUrl)
 
       await this.env.DB.prepare(
-        `UPDATE scp_entries SET content = ?, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
+        `UPDATE scp_entries SET content = ?, content_error = NULL, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
       ).bind(cleaned, scpNumber, language).run()
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`[ScpCrawlerDo] Error fetching entry scp-${scpNumber} (${language}):`, err)
+      await this.env.DB.prepare(
+        `UPDATE scp_entries SET content_error = ?, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
+      ).bind(errMsg, scpNumber, language).run()
     }
   }
 
