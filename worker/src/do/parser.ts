@@ -422,6 +422,29 @@ export function applyClassMap(entries: CrawlEntry[], classMap: Map<number, strin
 }
 
 /**
+ * Extract the object class from an individual SCP entry page HTML.
+ *
+ * Individual pages contain a structured "Object Class:" label followed by
+ * the class name (e.g., "Object Class: Euclid"). This is more reliable than
+ * index page parsing, which has no class data at all.
+ */
+export function extractObjectClassFromEntryPage(
+  html: string,
+  language: 'en' | 'cn',
+): string | null {
+  const config = PARSER_CONFIGS[language]
+
+  // Search the full page for the class declaration
+  config.classPattern.lastIndex = 0
+  const match = config.classPattern.exec(html)
+  if (match) {
+    return normalizeClass(match[1], config)
+  }
+
+  return null
+}
+
+/**
  * Get the base URL for a wiki language.
  */
 export function getWikiBaseUrl(language: 'en' | 'cn'): string {
@@ -441,7 +464,6 @@ const REMOVE_CLASSES = [
   'comments-box',
   'page-options-bottom',
   'footer-wikiwalk-nav',
-  'licensebox',
   'pager',
   'scp-image-block',
   'collapsible-block-link',   // collapse toggle links (content kept)
@@ -541,7 +563,16 @@ export function cleanEntryHtml(html: string, baseUrl: string): string {
   content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
   content = content.replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
 
-  // 3. Remove elements with known non-content classes
+  // 3. Extract licensebox content before removal (for collapsible copyright notice)
+  let licenseboxHtml = ''
+  const licenseboxMatch = content.match(/<(?:div|span|section|aside)[^>]*?\bclass="[^"]*licensebox[^"]*"[^>]*>([\s\S]*?)<\/(?:div|span|section|aside)>/i)
+  if (licenseboxMatch) {
+    // Strip the outer wrapper tag, keep inner content
+    const innerMatch = licenseboxMatch[0].match(/^<\w+[^>]*>([\s\S]*)<\/\w+>$/i)
+    licenseboxHtml = innerMatch ? innerMatch[1].trim() : licenseboxMatch[1].trim()
+  }
+
+  // 4. Remove elements with known non-content classes
   //    We do this by matching opening+content+closing tags for divs/spans with those classes.
   //    This is a best-effort regex approach (no DOM parser in Workers).
   const removePattern = buildRemoveClassPattern()
@@ -550,16 +581,24 @@ export function cleanEntryHtml(html: string, baseUrl: string): string {
   // Remove block-level elements with those classes (greedy removal up to next matching close tag)
   content = content.replace(/<(?:div|span|section|aside|nav)[^>]*?\bclass="[^"]*(?:page-rate-widget-box|edit-info|page-tags|comment_thread|comments-box|page-options-bottom|footer-wikiwalk-nav|licensebox|pager|creditRate|rate-box-with-credit-button|page-info|buttons)[^"]*"[^>]*>[\s\S]*?<\/(?:div|span|section|aside|nav)>/gi, '')
 
-  // 4. Remove on* event handler attributes
+  // 5. Remove on* event handler attributes
   content = content.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
 
-  // 5. Remove style="..." attributes
+  // 6. Remove style="..." attributes
   content = content.replace(/\s+style\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
 
-  // 6. Convert relative URLs to absolute
+  // 7. Convert relative URLs to absolute
   content = content.replace(/\bhref="\/(?!\/)/g, `href="${baseUrl}/`)
   content = content.replace(/\bsrc="\/(?!\/)/g, `src="${baseUrl}/`)
 
-  // 7. Wrap in container
+  // 8. Append collapsible copyright notice if licensebox was found
+  if (licenseboxHtml) {
+    // Clean the licensebox HTML with the same URL conversion
+    licenseboxHtml = licenseboxHtml.replace(/\bhref="\/(?!\/)/g, `href="${baseUrl}/`)
+    licenseboxHtml = licenseboxHtml.replace(/\bsrc="\/(?!\/)/g, `src="${baseUrl}/`)
+    content += `\n<details class="scp-copyright"><summary>Copyright / Attribution</summary><div class="scp-copyright-body">${licenseboxHtml}</div></details>`
+  }
+
+  // 9. Wrap in container
   return `<div class="scp-content">${content}</div>`
 }

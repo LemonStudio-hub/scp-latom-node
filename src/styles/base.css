@@ -337,3 +337,60 @@ pre code {
 [data-theme='light'] .scp-content img {
   opacity: 1;
 }
+
+/* ─── Collapsible Copyright / Attribution ─── */
+
+.scp-content .scp-copyright {
+  margin-top: 2em;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.scp-content .scp-copyright summary {
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  padding: var(--space-xs) 0;
+  user-select: none;
+  transition: color var(--transition-fast);
+  list-style: none;
+}
+
+.scp-content .scp-copyright summary::-webkit-details-marker {
+  display: none;
+}
+
+.scp-content .scp-copyright summary::before {
+  content: '▸ ';
+  display: inline;
+  transition: transform var(--transition-fast);
+}
+
+.scp-content .scp-copyright[open] summary::before {
+  content: '▾ ';
+}
+
+.scp-content .scp-copyright summary:hover {
+  color: var(--text-secondary);
+}
+
+.scp-content .scp-copyright-body {
+  padding: var(--space-md) 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+.scp-content .scp-copyright-body a {
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-subtle);
+  transition: color var(--transition-fast);
+}
+
+.scp-content .scp-copyright-body a:hover {
+  color: var(--color-accent);
+}

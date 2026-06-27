@@ -553,7 +553,7 @@ describe('cleanEntryHtml', () => {
     expect(result).not.toContain('page-tags')
   })
 
-  it('removes licensebox elements', () => {
+  it('wraps licensebox in collapsible copyright notice', () => {
     const html = `<div id="page-content">
       <p>Content</p>
       <div class="licensebox">CC BY-SA 3.0</div>
@@ -561,8 +561,22 @@ describe('cleanEntryHtml', () => {
     const result = cleanEntryHtml(html, baseUrl)
 
     expect(result).toContain('Content')
-    expect(result).not.toContain('licensebox')
-    expect(result).not.toContain('CC BY-SA')
+    expect(result).toContain('scp-copyright')
+    expect(result).toContain('Copyright / Attribution')
+    expect(result).toContain('CC BY-SA 3.0')
+    expect(result).toContain('<details')
+    expect(result).toContain('<summary>')
+  })
+
+  it('omits copyright notice when no licensebox present', () => {
+    const html = `<div id="page-content">
+      <p>Content only</p>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content only')
+    expect(result).not.toContain('scp-copyright')
+    expect(result).not.toContain('<details')
   })
 
   it('removes onclick and other event handler attributes', () => {

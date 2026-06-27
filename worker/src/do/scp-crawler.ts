@@ -1,5 +1,5 @@
 import type { CrawlEntry, CrawlState, Env, EntryContentResponse, SyncResult } from '../types'
-import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl, buildClassMap, applyClassMap, cleanEntryHtml } from './parser'
+import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl, buildClassMap, applyClassMap, cleanEntryHtml, extractObjectClassFromEntryPage } from './parser'
 import { fetchPageLikeBrowser, humanDelay } from './http-client'
 
 // ─── Constants ──────────────────────────────────────────────
@@ -322,6 +322,62 @@ export class ScpCrawlerDo {
     }
   }
 
+  /**
+   * Backfill entries that still have "Unknown" object class by fetching
+   * their individual wiki pages and extracting the class from the full page.
+   *
+   * This is the reliable fallback when `buildClassMap()` fails or misses entries.
+   * Limited to `maxEntries` per call to avoid excessive fetching.
+   */
+  private async backfillUnknownClasses(language: 'en' | 'cn', maxEntries = 100): Promise<number> {
+    const baseUrl = getWikiBaseUrl(language)
+
+    // Find entries still marked Unknown
+    const rows = await this.env.DB.prepare(
+      'SELECT scp_number FROM scp_entries WHERE language = ? AND object_class = ? ORDER BY scp_number ASC LIMIT ?'
+    ).bind(language, 'Unknown', maxEntries).all<{ scp_number: number }>()
+
+    if (rows.results.length === 0) return 0
+
+    let updated = 0
+
+    for (const row of rows.results) {
+      const scpNumber = row.scp_number
+      const padded = String(scpNumber).padStart(3, '0')
+      const url = `${baseUrl}/scp-${padded}`
+
+      try {
+        const result = await fetchPageLikeBrowser(url, {
+          baseUrl,
+          language,
+          fetcher: this.fetcher,
+          timeoutMs: FETCH_TIMEOUT_MS,
+        })
+
+        if (!result.ok || !result.html) {
+          console.warn(`[ScpCrawlerDo] Backfill: failed to fetch scp-${scpNumber} (${language}): ${result.error ?? `HTTP ${result.status}`}`)
+          continue
+        }
+
+        const objectClass = extractObjectClassFromEntryPage(result.html, language)
+        if (objectClass && objectClass !== 'Unknown') {
+          await this.env.DB.prepare(
+            `UPDATE scp_entries SET object_class = ?, updated_at = datetime('now') WHERE scp_number = ? AND language = ?`
+          ).bind(objectClass, scpNumber, language).run()
+          updated++
+        }
+      } catch (err) {
+        console.warn(`[ScpCrawlerDo] Backfill: error fetching scp-${scpNumber} (${language}):`, err)
+      }
+
+      // Rate-limit individual page fetches
+      await delay(humanDelay(BASE_CRAWL_DELAY_MS))
+    }
+
+    console.log(`[ScpCrawlerDo] Backfill ${language}: ${updated}/${rows.results.length} entries updated`)
+    return updated
+  }
+
   // ─── D1 Helpers ─────────────────────────────────────────
 
   private async getStateFromD1(language: 'en' | 'cn'): Promise<CrawlState> {
@@ -458,8 +514,8 @@ export class ScpCrawlerDo {
     let classMap: Map<number, string> | null = null
     try {
       classMap = await buildClassMap({ language, fetcher: this.fetcher })
-    } catch {
-      // Continue without class map — entries will have Unknown class
+    } catch (err) {
+      console.warn(`[ScpCrawlerDo] buildClassMap failed for ${language}:`, err)
     }
 
     // Fetch all series pages and collect entries
@@ -493,6 +549,8 @@ export class ScpCrawlerDo {
     // Apply class map to fill in Unknown entries
     if (classMap) {
       applyClassMap(fetchedEntries, classMap)
+    } else {
+      console.warn(`[ScpCrawlerDo] Class map unavailable for ${language} — entries without class from index pages will be Unknown`)
     }
 
     // Change detection: compare fetched entries against D1
@@ -525,6 +583,9 @@ export class ScpCrawlerDo {
     if (toUpsert.length > 0) {
       await this.upsertEntriesToD1(language, toUpsert)
     }
+
+    // Backfill entries that still have Unknown class by fetching individual pages
+    await this.backfillUnknownClasses(language)
 
     // Update crawl state in D1
     const totalRow = await this.env.DB.prepare(
@@ -564,8 +625,8 @@ export class ScpCrawlerDo {
     let classMap: Map<number, string> | null = null
     try {
       classMap = await buildClassMap({ language, fetcher: this.fetcher })
-    } catch {
-      // Continue without class map — entries will have Unknown class
+    } catch (err) {
+      console.warn(`[ScpCrawlerDo] buildClassMap failed for ${language}:`, err)
     }
 
     // Find the highest SCP number already in D1 for this language
@@ -619,12 +680,17 @@ export class ScpCrawlerDo {
     // Apply class map to fill in Unknown entries
     if (classMap) {
       applyClassMap(collected, classMap)
+    } else {
+      console.warn(`[ScpCrawlerDo] Class map unavailable for ${language} — entries without class from index pages will be Unknown`)
     }
 
     // Write collected entries to D1
     if (collected.length > 0) {
       await this.upsertEntriesToD1(language, collected)
     }
+
+    // Backfill entries that still have Unknown class by fetching individual pages
+    await this.backfillUnknownClasses(language)
 
     // Get total count from D1
     const totalRow = await this.env.DB.prepare(
