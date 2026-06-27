@@ -131,12 +131,10 @@ onMounted(() => {
       </div>
 
       <div class="entries-list">
-        <a
+        <router-link
           v-for="entry in crawler.entries"
           :key="entry.scpNumber"
-          :href="entry.url"
-          target="_blank"
-          rel="noopener noreferrer"
+          :to="'/entry/' + crawler.language + '/' + entry.scpNumber"
           class="entry-row"
         >
           <div class="entry-left">
@@ -152,7 +150,7 @@ onMounted(() => {
               {{ entry.objectClass }}
             </Badge>
           </div>
-        </a>
+        </router-link>
       </div>
 
       <!-- Pagination -->

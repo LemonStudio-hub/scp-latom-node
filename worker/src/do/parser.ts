@@ -1,4 +1,5 @@
 import type { CrawlEntry } from '../types'
+import { fetchPageLikeBrowser, humanDelay } from './http-client'
 
 // ─── Parser Configuration ───────────────────────────────────
 
@@ -279,6 +280,147 @@ export const SERIES_PAGES = [
   'scp-series-8',    // Series 8: 7000-7999
 ] as const
 
+// ─── Object Class Map ───────────────────────────────────────
+
+/** Containment classes to fetch from wiki tag pages */
+const OBJECT_CLASSES = [
+  'safe', 'euclid', 'keter', 'thaumiel', 'apollyon', 'neutralized',
+] as const
+
+/** Map of tag slug → normalized class name */
+const TAG_CLASS_MAP: Record<string, string> = {
+  safe: 'Safe',
+  euclid: 'Euclid',
+  keter: 'Keter',
+  thaumiel: 'Thaumiel',
+  apollyon: 'Apollyon',
+  neutralized: 'Neutralized',
+}
+
+/** Base fetch options shared across class map requests */
+const CLASS_MAP_FETCH_TIMEOUT_MS = 15_000
+const CLASS_MAP_CRAWL_DELAY_MS = 1200
+
+/** Regex to detect Wikidot pager links for pagination */
+const PAGER_PATTERN = /class="pager"[^>]*>[\s\S]*?<a[^>]*href="[^"]*\?p=(\d+)"/gi
+
+/**
+ * Detect the total number of pages on a Wikidot tag page
+ * by looking for the highest page number in the pager element.
+ */
+function detectPageCount(html: string): number {
+  let maxPage = 1
+  let match: RegExpExecArray | null
+  PAGER_PATTERN.lastIndex = 0
+  while ((match = PAGER_PATTERN.exec(html)) !== null) {
+    const pageNum = parseInt(match[1], 10)
+    if (pageNum > maxPage) maxPage = pageNum
+  }
+  return maxPage
+}
+
+/**
+ * Parse a single tag page HTML and extract all SCP numbers found in links.
+ */
+function extractScpNumbersFromPage(html: string): number[] {
+  const config = EN_CONFIG // Tag pages use the same link format for all languages
+  const numbers: number[] = []
+  const seen = new Set<number>()
+
+  const matches = [...html.matchAll(config.linkPattern)]
+  for (const match of matches) {
+    const slug = match[1]
+    const num = extractScpNumber(slug)
+    if (num !== null && !seen.has(num)) {
+      seen.add(num)
+      numbers.push(num)
+    }
+  }
+  return numbers
+}
+
+export interface BuildClassMapOptions {
+  language: 'en' | 'cn'
+  fetcher?: typeof fetch
+  timeoutMs?: number
+}
+
+/**
+ * Build a mapping of SCP number → object class by fetching wiki tag pages.
+ *
+ * The SCP wiki tags pages by containment class (safe, euclid, keter, etc.).
+ * Each tag page lists all SCPs of that class as standard wiki links.
+ * This function fetches all pages (handling pagination) and builds the map.
+ *
+ * Errors are non-fatal — partial results are returned.
+ */
+export async function buildClassMap(
+  options: BuildClassMapOptions,
+): Promise<Map<number, string>> {
+  const { language, fetcher, timeoutMs = CLASS_MAP_FETCH_TIMEOUT_MS } = options
+  const baseUrl = getWikiBaseUrl(language)
+  const classMap = new Map<number, string>()
+
+  for (const cls of OBJECT_CLASSES) {
+    const tagUrl = `${baseUrl}/system:page-tags/tag/${cls}`
+
+    try {
+      // Fetch first page to detect pagination
+      const firstPage = await fetchPageLikeBrowser(tagUrl, {
+        baseUrl, language, fetcher, timeoutMs,
+      })
+
+      if (!firstPage.ok || !firstPage.html) continue
+
+      // Extract SCP numbers from first page
+      const firstPageNumbers = extractScpNumbersFromPage(firstPage.html)
+      for (const num of firstPageNumbers) {
+        if (!classMap.has(num)) {
+          classMap.set(num, TAG_CLASS_MAP[cls])
+        }
+      }
+
+      // Check for additional pages
+      const totalPages = detectPageCount(firstPage.html)
+      for (let p = 2; p <= totalPages; p++) {
+        await new Promise((r) => setTimeout(r, humanDelay(CLASS_MAP_CRAWL_DELAY_MS)))
+
+        const page = await fetchPageLikeBrowser(`${tagUrl}?p=${p}`, {
+          baseUrl, language, fetcher, timeoutMs,
+        })
+
+        if (!page.ok || !page.html) continue
+
+        const numbers = extractScpNumbersFromPage(page.html)
+        for (const num of numbers) {
+          if (!classMap.has(num)) {
+            classMap.set(num, TAG_CLASS_MAP[cls])
+          }
+        }
+      }
+    } catch {
+      // Skip this class on error — non-fatal
+    }
+
+    // Delay between classes to avoid hammering the server
+    await new Promise((r) => setTimeout(r, humanDelay(CLASS_MAP_CRAWL_DELAY_MS)))
+  }
+
+  return classMap
+}
+
+/**
+ * Apply a class map to crawl entries, filling in 'Unknown' object classes.
+ * Entries that already have a known class are left unchanged.
+ */
+export function applyClassMap(entries: CrawlEntry[], classMap: Map<number, string>): void {
+  for (const entry of entries) {
+    if (entry.objectClass === 'Unknown' && classMap.has(entry.scpNumber)) {
+      entry.objectClass = classMap.get(entry.scpNumber)!
+    }
+  }
+}
+
 /**
  * Get the base URL for a wiki language.
  */
@@ -286,4 +428,138 @@ export function getWikiBaseUrl(language: 'en' | 'cn'): string {
   return language === 'cn'
     ? 'https://scp-wiki-cn.wikidot.com'
     : 'https://scp-wiki.wikidot.com'
+}
+
+// ─── Entry Page HTML Cleaning ───────────────────────────────
+
+/** CSS classes of elements to remove from entry page content */
+const REMOVE_CLASSES = [
+  'page-rate-widget-box',
+  'edit-info',
+  'page-tags',
+  'comment_thread',
+  'comments-box',
+  'page-options-bottom',
+  'footer-wikiwalk-nav',
+  'licensebox',
+  'pager',
+  'scp-image-block',
+  'collapsible-block-link',   // collapse toggle links (content kept)
+  'yui-navset',
+  'wiesel',
+  'page-info',
+  'buttons',
+  'creditRate',
+  'rate-box-with-credit-button',
+] as const
+
+/**
+ * Build a regex that matches an opening tag with a class attribute containing one of the given class names.
+ * Matches: <div class="page-rate-widget-box ..."> or <span class='edit-info'>
+ */
+function buildRemoveClassPattern(): RegExp {
+  const classAlternation = REMOVE_CLASSES.join('|')
+  // Match opening tags with class= containing any of the remove classes
+  return new RegExp(
+    `<\\w+[^>]*?\\bclass="[^"]*(?:${classAlternation})[^"]*"[^>]*>`,
+    'gi'
+  )
+}
+
+/**
+ * Extract the content of a specific div by id.
+ * Returns the inner HTML between the opening <div id="page-content"> and its matching closing </div>.
+ * Handles one level of nested divs.
+ */
+function extractPageContent(html: string): string | null {
+  const openTag = '<div id="page-content"'
+  const startIdx = html.indexOf(openTag)
+  if (startIdx === -1) return null
+
+  // Find the end of the opening tag (the >)
+  const openTagEnd = html.indexOf('>', startIdx)
+  if (openTagEnd === -1) return null
+  const contentStart = openTagEnd + 1
+
+  // Count nested divs to find the matching closing tag
+  let depth = 1
+  let pos = contentStart
+  while (pos < html.length && depth > 0) {
+    const nextOpen = html.indexOf('<div', pos)
+    const nextClose = html.indexOf('</div>', pos)
+
+    if (nextClose === -1) break // malformed HTML
+
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      // Check it's actually an opening tag (not inside an attribute)
+      const afterOpen = html.indexOf('>', nextOpen)
+      if (afterOpen !== -1 && afterOpen < nextClose) {
+        // Only count if it's not self-closing
+        if (html[afterOpen - 1] !== '/') {
+          depth++
+        }
+        pos = afterOpen + 1
+      } else {
+        pos = nextOpen + 4
+      }
+    } else {
+      depth--
+      if (depth === 0) {
+        return html.slice(contentStart, nextClose)
+      }
+      pos = nextClose + 6
+    }
+  }
+
+  // Fallback: return everything after the opening tag
+  return html.slice(contentStart)
+}
+
+/**
+ * Clean an SCP wiki entry page HTML for storage and rendering.
+ *
+ * Steps:
+ * 1. Extract #page-content div (main article body)
+ * 2. Remove <script>, <style>, <noscript> tags
+ * 3. Remove elements with known non-content classes (rate widgets, edit buttons, etc.)
+ * 4. Remove on* event handler attributes
+ * 5. Remove style="..." attributes
+ * 6. Convert relative URLs to absolute
+ * 7. Wrap in .scp-content container
+ */
+export function cleanEntryHtml(html: string, baseUrl: string): string {
+  // 1. Extract page content
+  let content = extractPageContent(html)
+  if (!content) {
+    // Fallback: try to find any main content area
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+    content = bodyMatch ? bodyMatch[1] : html
+  }
+
+  // 2. Remove script, style, noscript tags (including content)
+  content = content.replace(/<script[\s\S]*?<\/script>/gi, '')
+  content = content.replace(/<style[\s\S]*?<\/style>/gi, '')
+  content = content.replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+
+  // 3. Remove elements with known non-content classes
+  //    We do this by matching opening+content+closing tags for divs/spans with those classes.
+  //    This is a best-effort regex approach (no DOM parser in Workers).
+  const removePattern = buildRemoveClassPattern()
+  // Remove self-closing or simple elements with those classes
+  content = content.replace(/<\w+[^>]*?\bclass="[^"]*(?:page-rate-widget-box|edit-info|page-tags|comment_thread|comments-box|page-options-bottom|footer-wikiwalk-nav|licensebox|pager|creditRate|rate-box-with-credit-button|page-info|buttons)[^"]*"[^>]*\/>/gi, '')
+  // Remove block-level elements with those classes (greedy removal up to next matching close tag)
+  content = content.replace(/<(?:div|span|section|aside|nav)[^>]*?\bclass="[^"]*(?:page-rate-widget-box|edit-info|page-tags|comment_thread|comments-box|page-options-bottom|footer-wikiwalk-nav|licensebox|pager|creditRate|rate-box-with-credit-button|page-info|buttons)[^"]*"[^>]*>[\s\S]*?<\/(?:div|span|section|aside|nav)>/gi, '')
+
+  // 4. Remove on* event handler attributes
+  content = content.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+
+  // 5. Remove style="..." attributes
+  content = content.replace(/\s+style\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+
+  // 6. Convert relative URLs to absolute
+  content = content.replace(/\bhref="\/(?!\/)/g, `href="${baseUrl}/`)
+  content = content.replace(/\bsrc="\/(?!\/)/g, `src="${baseUrl}/`)
+
+  // 7. Wrap in container
+  return `<div class="scp-content">${content}</div>`
 }

@@ -149,6 +149,35 @@ crawler.get('/:lang/series/:n', async (c) => {
 })
 
 /**
+ * GET /api/crawler/:lang/entry/:scpNumber
+ * Get cleaned HTML content for a specific SCP entry.
+ *
+ * If content is already cached in D1, returns it immediately.
+ * If not, triggers a background fetch and returns a pending status.
+ * The client should poll until status is 'cached' or 'fetched'.
+ */
+crawler.get('/:lang/entry/:scpNumber', async (c) => {
+  const lang = c.req.param('lang')
+  if (lang !== 'en' && lang !== 'cn') {
+    return c.json({ success: false, error: "Invalid language. Use 'en' or 'cn'" }, 400)
+  }
+
+  const scpNumber = parseInt(c.req.param('scpNumber'), 10)
+  if (isNaN(scpNumber) || scpNumber < 1) {
+    return c.json({ success: false, error: 'Invalid SCP number' }, 400)
+  }
+
+  try {
+    const response = await forwardToDo(c.env, lang, `/entry/${scpNumber}`)
+    const data = await response.json()
+    return c.json(data, response.status as 200)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return c.json({ success: false, error: `Failed to fetch entry content: ${message}` }, 503)
+  }
+})
+
+/**
  * POST /api/crawler/:lang/crawl
  * Trigger a new crawl for a specific language.
  *

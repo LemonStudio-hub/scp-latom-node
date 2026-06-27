@@ -61,6 +61,19 @@ export interface CrawlerEntriesParams {
   limit?: number
 }
 
+export interface EntryContentResponse {
+  success: boolean
+  scpNumber: number
+  language: string
+  status: 'cached' | 'fetched' | 'pending' | 'fetching' | 'error'
+  content?: string
+  name?: string
+  objectClass?: string
+  fetchedAt?: string
+  message?: string
+  error?: string
+}
+
 // ─── API Client ─────────────────────────────────────────────
 
 async function request<T = unknown>(
@@ -127,4 +140,18 @@ export function fetchCrawlerSeries(
   series: number
 ): Promise<ApiResult<CrawlerSeriesResponse>> {
   return request('GET', `/api/crawler/${lang}/series/${series}`)
+}
+
+/**
+ * Get cleaned HTML content for a specific SCP entry.
+ *
+ * If the content is cached in D1, it's returned immediately with status 'cached'.
+ * If not, the backend triggers a background fetch and returns status 'pending'.
+ * The client should poll until status changes to 'cached' or 'fetched'.
+ */
+export function fetchEntryContent(
+  lang: 'en' | 'cn',
+  scpNumber: number
+): Promise<ApiResult<EntryContentResponse>> {
+  return request('GET', `/api/crawler/${lang}/entry/${scpNumber}`)
 }

@@ -40,7 +40,7 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.catalog' },
   },
   {
-    path: '/entry/:id',
+    path: '/entry/:lang/:scpNumber',
     name: 'entry',
     component: DeviceView,
     props: {

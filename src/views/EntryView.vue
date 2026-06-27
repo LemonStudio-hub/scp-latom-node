@@ -1,18 +1,109 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { entries } from '@/data/entries'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { fetchEntryContent, type EntryContentResponse } from '@/services/crawler'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
-import { useI18n } from 'vue-i18n'
+import type { ObjectClass } from '@/types'
 
 const { t } = useI18n()
 const route = useRoute()
-const entry = computed(() => entries.find((e) => e.id === route.params.id))
+const router = useRouter()
+
+const lang = computed(() => route.params.lang as 'en' | 'cn')
+const scpNumber = computed(() => parseInt(route.params.scpNumber as string, 10))
+const scpId = computed(() => `SCP-${String(scpNumber.value).padStart(3, '0')}`)
+
+const loading = ref(true)
+const error = ref('')
+const data = ref<EntryContentResponse | null>(null)
+let pollTimer: ReturnType<typeof setTimeout> | null = null
+
+async function loadContent() {
+  loading.value = true
+  error.value = ''
+
+  const res = await fetchEntryContent(lang.value, scpNumber.value)
+
+  if (!res.ok) {
+    loading.value = false
+    error.value = res.error
+    return
+  }
+
+  data.value = res.data
+
+  if (res.data.status === 'cached' || res.data.status === 'fetched') {
+    loading.value = false
+    return
+  }
+
+  if (res.data.status === 'pending' || res.data.status === 'fetching') {
+    // Poll until content is ready
+    pollTimer = setTimeout(() => {
+      pollForContent()
+    }, 2000)
+    return
+  }
+
+  // status === 'error'
+  loading.value = false
+  error.value = res.data.error || 'Failed to fetch entry content'
+}
+
+async function pollForContent() {
+  const res = await fetchEntryContent(lang.value, scpNumber.value)
+
+  if (!res.ok) {
+    loading.value = false
+    error.value = res.error
+    return
+  }
+
+  data.value = res.data
+
+  if (res.data.status === 'cached' || res.data.status === 'fetched') {
+    loading.value = false
+    return
+  }
+
+  if (res.data.status === 'pending' || res.data.status === 'fetching') {
+    pollTimer = setTimeout(() => {
+      pollForContent()
+    }, 2000)
+    return
+  }
+
+  loading.value = false
+  error.value = res.data.error || 'Failed to fetch entry content'
+}
+
+function retry() {
+  data.value = null
+  loadContent()
+}
+
+onMounted(() => {
+  if (!scpNumber.value || isNaN(scpNumber.value)) {
+    error.value = 'Invalid SCP number'
+    loading.value = false
+    return
+  }
+  loadContent()
+})
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
+  }
+})
 </script>
 
 <template>
-  <div class="entry-view" v-if="entry">
+  <div class="entry-view">
+    <!-- Back Link -->
     <router-link to="/catalog" class="back-link">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="15 18 9 12 15 6" />
@@ -20,82 +111,69 @@ const entry = computed(() => entries.find((e) => e.id === route.params.id))
       {{ t('entry.back') }}
     </router-link>
 
-    <div class="entry-header">
-      <div class="entry-meta">
-        <ClassBar :object-class="entry.objectClass" :show-label="true" />
-        <Badge :variant="entry.objectClass.toLowerCase() as any">{{ t(`classes.${entry.objectClass}`) }}</Badge>
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <div class="skeleton-header">
+        <div class="skeleton skeleton-badge" />
+        <div class="skeleton skeleton-title" />
+        <div class="skeleton skeleton-subtitle" />
       </div>
-      <h1 class="entry-title">
-        <span class="entry-id">SCP-{{ String(entry.number).padStart(3, '0') }}</span>
-        <span class="entry-name">— {{ t(`entries.${entry.id}.name`) }}</span>
-      </h1>
-      <div class="entry-info">
-        <span class="info-item">
-          <span class="info-label">{{ t('entry.author') }}</span>
-          {{ entry.author }}
-        </span>
-        <span class="info-item">
-          <span class="info-label">{{ t('entry.date') }}</span>
-          {{ entry.date }}
-        </span>
+      <div class="skeleton-body">
+        <div v-for="i in 8" :key="i" class="skeleton skeleton-line" :style="{ width: `${60 + Math.random() * 40}%` }" />
+      </div>
+      <p class="loading-hint" v-if="data?.status === 'pending' || data?.status === 'fetching'">
+        Fetching content from the SCP wiki…
+      </p>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="error-state">
+      <span class="error-icon">⚠</span>
+      <h2>{{ scpId }}</h2>
+      <p class="error-message">{{ error }}</p>
+      <div class="error-actions">
+        <button class="retry-btn" @click="retry">Retry</button>
+        <a v-if="data?.status !== 'error'" :href="`https://scp-wiki.wikidot.com/scp-${String(scpNumber).padStart(3, '0')}`" target="_blank" rel="noopener noreferrer" class="external-link">
+          View on Wiki ↗
+        </a>
       </div>
     </div>
 
-    <div class="entry-tags">
-      <span v-for="tag in entry.tags" :key="tag" class="tag">{{ tag }}</span>
-    </div>
-
-    <div class="entry-body">
-      <section class="section">
-        <h2 class="section-title">
-          <span class="section-icon">◈</span>
-          {{ t('entry.objectClass') }}
-        </h2>
-        <div class="object-class-display">
-          <Badge :variant="entry.objectClass.toLowerCase() as any" class="class-badge-lg">
-            {{ t(`classes.${entry.objectClass}`) }}
+    <!-- Content -->
+    <template v-else-if="data">
+      <div class="entry-header">
+        <div class="entry-meta">
+          <ClassBar v-if="data.objectClass" :object-class="data.objectClass as ObjectClass" :show-label="true" />
+          <Badge v-if="data.objectClass" :variant="data.objectClass.toLowerCase() as any">
+            {{ data.objectClass }}
           </Badge>
         </div>
-      </section>
-
-      <section class="section">
-        <h2 class="section-title">
-          <span class="section-icon">◫</span>
-          {{ t('entry.containment') }}
-        </h2>
-        <div class="section-content">
-          <p>{{ t(`entries.${entry.id}.containment`) }}</p>
+        <h1 class="entry-title">
+          <span class="entry-id">{{ scpId }}</span>
+          <span v-if="data.name" class="entry-name">— {{ data.name }}</span>
+        </h1>
+        <div class="entry-info">
+          <span class="info-item">
+            <span class="info-label">Language</span>
+            {{ lang === 'en' ? 'English' : '中文' }}
+          </span>
+          <span v-if="data.fetchedAt" class="info-item">
+            <span class="info-label">Cached</span>
+            {{ new Date(data.fetchedAt).toLocaleDateString() }}
+          </span>
+          <a
+            :href="`https://scp-wiki.wikidot.com/scp-${String(scpNumber).padStart(3, '0')}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="wiki-link"
+          >
+            View on Wiki ↗
+          </a>
         </div>
-      </section>
+      </div>
 
-      <section class="section">
-        <h2 class="section-title">
-          <span class="section-icon">◎</span>
-          {{ t('entry.description') }}
-        </h2>
-        <div class="section-content">
-          <p>{{ t(`entries.${entry.id}.description`) }}</p>
-        </div>
-      </section>
-
-      <section v-if="entry.addenda?.length" class="section">
-        <h2 class="section-title">
-          <span class="section-icon">▣</span>
-          {{ t('entry.addenda') }}
-        </h2>
-        <div class="addenda-list">
-          <div v-for="(_, i) in entry.addenda" :key="i" class="addendum">
-            <p>{{ t(`entries.${entry.id}.addenda[${i}]`) }}</p>
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>
-
-  <div v-else class="not-found">
-    <h1>{{ t('entry.notFound') }}</h1>
-    <p>{{ t('entry.notFoundDesc') }}</p>
-    <router-link to="/catalog" class="btn btn-primary">{{ t('entry.returnToCatalog') }}</router-link>
+      <div class="entry-body" v-if="data.content" v-html="data.content" />
+    </template>
   </div>
 </template>
 
@@ -119,6 +197,8 @@ const entry = computed(() => entries.find((e) => e.id === route.params.id))
 .back-link:hover {
   color: var(--color-accent);
 }
+
+/* ─── Header ─── */
 
 .entry-header {
   margin-bottom: var(--space-lg);
@@ -152,6 +232,145 @@ const entry = computed(() => entries.find((e) => e.id === route.params.id))
   gap: var(--space-lg);
   font-size: var(--text-sm);
   color: var(--text-tertiary);
+  align-items: center;
+}
+
+.info-label {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  margin-right: var(--space-xs);
+}
+
+.wiki-link {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  transition: color var(--transition-fast);
+}
+
+.wiki-link:hover {
+  color: var(--color-accent);
+}
+
+/* ─── Body ─── */
+
+.entry-body {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ─── Loading ─── */
+
+.loading-state {
+  padding: var(--space-xl) 0;
+}
+
+.skeleton-header {
+  margin-bottom: var(--space-xl);
+}
+
+.skeleton {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-badge {
+  width: 120px;
+  height: 28px;
+  margin-bottom: var(--space-md);
+}
+
+.skeleton-title {
+  width: 300px;
+  height: 36px;
+  margin-bottom: var(--space-sm);
+}
+
+.skeleton-subtitle {
+  width: 200px;
+  height: 20px;
+}
+
+.skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.skeleton-line {
+  height: 16px;
+}
+
+.loading-hint {
+  margin-top: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ─── Error ─── */
+
+.error-state {
+  text-align: center;
+  padding: var(--space-3xl) 0;
+}
+
+.error-icon {
+  font-size: 3rem;
+  color: var(--color-danger);
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.error-state h2 {
+  margin-bottom: var(--space-sm);
+}
+
+.error-message {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xl);
+}
+
+.error-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  align-items: center;
+}
+
+.retry-btn {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  border: none;
+  color: var(--text-inverse);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: background var(--transition-fast);
+}
+
+.retry-btn:hover {
+  background: var(--color-primary-hover);
+}
+
+.external-link {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.external-link:hover {
+  color: var(--color-accent);
 }
 
 @media (max-width: 480px) {
@@ -160,128 +379,8 @@ const entry = computed(() => entries.find((e) => e.id === route.params.id))
     font-size: var(--text-xs);
   }
 
-  .section-content {
-    padding-left: var(--space-md);
+  .error-actions {
+    flex-direction: column;
   }
-}
-
-.info-label {
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-.entry-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-2xl);
-}
-
-.tag {
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
-  padding: 2px 10px;
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-tertiary);
-  border: 1px solid var(--border-subtle);
-}
-
-.entry-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xl);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.section-icon {
-  color: var(--color-primary);
-  font-size: var(--text-base);
-}
-
-.section-content {
-  padding-left: var(--space-lg);
-  border-left: 2px solid var(--border-subtle);
-}
-
-.section-content p {
-  font-size: var(--text-base);
-  line-height: var(--leading-relaxed);
-  color: var(--text-secondary);
-}
-
-.object-class-display {
-  padding: var(--space-md) 0;
-}
-
-.class-badge-lg {
-  font-size: var(--text-sm) !important;
-  padding: 4px 16px !important;
-}
-
-.addenda-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.addendum {
-  padding: var(--space-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-}
-
-.addendum p {
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-  color: var(--text-secondary);
-}
-
-.not-found {
-  text-align: center;
-  padding: var(--space-3xl) 0;
-}
-
-.not-found h1 {
-  margin-bottom: var(--space-sm);
-}
-
-.not-found p {
-  margin-bottom: var(--space-xl);
-  color: var(--text-secondary);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 10px 22px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-decoration: none;
-  transition: all var(--transition-fast);
-}
-
-.btn-primary {
-  background: var(--color-primary);
-  color: var(--text-inverse);
-}
-
-.btn-primary:hover {
-  background: var(--color-primary-hover);
-  color: var(--text-inverse);
 }
 </style>

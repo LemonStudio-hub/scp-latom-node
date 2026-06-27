@@ -19,9 +19,11 @@ CREATE TABLE IF NOT EXISTS scp_entries (
   name         TEXT NOT NULL DEFAULT '',
   object_class TEXT NOT NULL DEFAULT 'Unknown',
   url          TEXT NOT NULL DEFAULT '',
-  series       INTEGER NOT NULL DEFAULT 1,
-  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  series            INTEGER NOT NULL DEFAULT 1,
+  content           TEXT,
+  content_fetched_at TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(scp_number, language)
 );
 

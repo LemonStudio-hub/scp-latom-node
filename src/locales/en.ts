@@ -24,6 +24,8 @@ export default {
     active: 'ACTIVE',
     clearance: 'CLEARANCE',
     level4: 'LEVEL 4',
+    collapse: 'Collapse sidebar',
+    expand: 'Expand sidebar',
   },
   footer: {
     brand: 'SCP Foundation',

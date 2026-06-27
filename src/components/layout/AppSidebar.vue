@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useSidebar } from '@/composables/useSidebar'
 
 const { t } = useI18n()
 const route = useRoute()
+const { collapsed, toggle } = useSidebar()
 
 const navItems = [
   { path: '/', labelKey: 'nav.dashboard', icon: '◈' },
@@ -14,7 +16,7 @@ const navItems = [
 </script>
 
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ collapsed }">
     <nav class="nav">
       <router-link
         v-for="item in navItems"
@@ -22,6 +24,7 @@ const navItems = [
         :to="item.path"
         class="nav-item"
         :class="{ active: route.path === item.path || (item.path !== '/' && route.path.startsWith(item.path)) }"
+        :title="collapsed ? t(item.labelKey) : undefined"
       >
         <span class="nav-icon">{{ item.icon }}</span>
         <span class="nav-label">{{ t(item.labelKey) }}</span>
@@ -46,6 +49,25 @@ const navItems = [
         </div>
       </div>
     </div>
+
+    <button
+      class="collapse-btn"
+      @click="toggle"
+      :title="collapsed ? t('sidebar.expand') : t('sidebar.collapse')"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline :points="collapsed ? '6 3 11 8 6 13' : '10 3 5 8 10 13'" />
+      </svg>
+    </button>
   </aside>
 
   <!-- Mobile bottom nav -->
@@ -77,6 +99,12 @@ const navItems = [
   z-index: var(--z-sidebar);
   padding: var(--space-md) 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: width var(--transition-normal);
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
 }
 
 .nav {
@@ -98,6 +126,7 @@ const navItems = [
   text-decoration: none;
   transition: all var(--transition-fast);
   position: relative;
+  white-space: nowrap;
 }
 
 .nav-item:hover {
@@ -126,11 +155,29 @@ const navItems = [
   font-size: var(--text-lg);
   width: 24px;
   text-align: center;
+  flex-shrink: 0;
+}
+
+.nav-label {
+  overflow: hidden;
+  transition: opacity var(--transition-fast);
+}
+
+.collapsed .nav-label {
+  opacity: 0;
+  width: 0;
 }
 
 .sidebar-footer {
   margin-top: auto;
   padding: 0 var(--space-md);
+  overflow: hidden;
+  transition: opacity var(--transition-fast);
+}
+
+.collapsed .sidebar-footer {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-divider {
@@ -172,6 +219,33 @@ const navItems = [
   border-radius: 50%;
   background: var(--color-success);
   box-shadow: 0 0 6px var(--color-success);
+}
+
+.collapse-btn {
+  position: absolute;
+  bottom: var(--space-md);
+  right: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.collapse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.collapsed .collapse-btn {
+  right: 50%;
+  transform: translateX(50%);
 }
 
 /* Mobile nav */

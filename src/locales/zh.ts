@@ -24,6 +24,8 @@ export default {
     active: '运行中',
     clearance: '权限等级',
     level4: '4级',
+    collapse: '收起侧边栏',
+    expand: '展开侧边栏',
   },
   footer: {
     brand: 'SCP基金会',

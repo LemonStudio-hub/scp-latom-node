@@ -48,6 +48,12 @@ button {
   font-family: inherit;
   border: none;
   background: none;
+  cursor: pointer;
+}
+
+button:active,
+button:focus {
+  cursor: pointer;
 }
 
 input, textarea, select {
@@ -178,4 +184,156 @@ pre code {
     animation-iteration-count: 1 !important;
     transition-duration: 0ms !important;
   }
+}
+
+/* ═══ SCP Entry Content Overrides ═══ */
+/* Applied to cleaned wiki HTML rendered via v-html */
+.scp-content {
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.scp-content h1,
+.scp-content h2,
+.scp-content h3,
+.scp-content h4,
+.scp-content h5,
+.scp-content h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.scp-content h1 { font-size: var(--text-3xl); }
+.scp-content h2 { font-size: var(--text-2xl); }
+.scp-content h3 { font-size: var(--text-xl); }
+.scp-content h4 { font-size: var(--text-lg); }
+
+.scp-content p {
+  color: var(--text-secondary);
+  margin-bottom: 1em;
+}
+
+.scp-content a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.scp-content a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.scp-content strong,
+.scp-content b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.scp-content em,
+.scp-content i {
+  color: var(--text-secondary);
+}
+
+.scp-content ul,
+.scp-content ol {
+  color: var(--text-secondary);
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.scp-content li {
+  margin-bottom: 0.25em;
+}
+
+.scp-content blockquote {
+  border-left: 3px solid var(--color-primary);
+  background: var(--bg-surface);
+  padding: var(--space-md) var(--space-lg);
+  margin: 1em 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-secondary);
+}
+
+.scp-content pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.scp-content pre code {
+  background: none;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+.scp-content code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-elevated);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+}
+
+.scp-content hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 2em 0;
+}
+
+.scp-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.scp-content th,
+.scp-content td {
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.scp-content th {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.scp-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: 1em 0;
+}
+
+.scp-content sup {
+  font-size: 0.75em;
+  color: var(--text-tertiary);
+}
+
+.scp-content sub {
+  font-size: 0.75em;
+  color: var(--text-tertiary);
+}
+
+/* Dark theme: ensure images aren't too bright */
+.scp-content img {
+  opacity: 0.95;
+}
+
+[data-theme='light'] .scp-content img {
+  opacity: 1;
 }

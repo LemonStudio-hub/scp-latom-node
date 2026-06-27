@@ -1,17 +1,31 @@
 <script setup lang="ts">
-import { siteStats } from '@/data/entries'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { CrawlEntry, CrawlState } from '@/services/crawler'
 
 const { t } = useI18n()
 
-const stats = [
-  { labelKey: 'stats.totalEntries', value: siteStats.totalEntries, icon: '◈', color: 'var(--color-primary)' },
-  { labelKey: 'stats.safe', value: siteStats.byClass.Safe, icon: '●', color: 'var(--class-safe)' },
-  { labelKey: 'stats.euclid', value: siteStats.byClass.Euclid, icon: '●', color: 'var(--class-euclid)' },
-  { labelKey: 'stats.keter', value: siteStats.byClass.Keter, icon: '●', color: 'var(--class-keter)' },
-  { labelKey: 'stats.documents', value: siteStats.documents, icon: '◫', color: 'var(--color-accent)' },
-  { labelKey: 'stats.personnel', value: siteStats.personnel.toLocaleString(), icon: '◎', color: 'var(--text-secondary)' },
-]
+const props = defineProps<{
+  total: number
+  entries: CrawlEntry[]
+  state: CrawlState | null
+}>()
+
+const classCounts = computed(() => {
+  const counts: Record<string, number> = { Safe: 0, Euclid: 0, Keter: 0, Thaumiel: 0, Apollyon: 0, Neutralized: 0 }
+  for (const entry of props.entries) {
+    const cls = entry.objectClass
+    if (cls in counts) counts[cls]++
+  }
+  return counts
+})
+
+const stats = computed(() => [
+  { labelKey: 'stats.totalEntries', value: props.total, icon: '◈', color: 'var(--color-primary)' },
+  { labelKey: 'stats.safe', value: classCounts.value.Safe, icon: '●', color: 'var(--class-safe)' },
+  { labelKey: 'stats.euclid', value: classCounts.value.Euclid, icon: '●', color: 'var(--class-euclid)' },
+  { labelKey: 'stats.keter', value: classCounts.value.Keter, icon: '●', color: 'var(--class-keter)' },
+])
 </script>
 
 <template>

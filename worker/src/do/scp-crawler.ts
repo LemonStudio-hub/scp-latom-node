@@ -1,19 +1,17 @@
-import type { CrawlEntry, CrawlState, Env } from '../types'
-import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl } from './parser'
+import type { CrawlEntry, CrawlState, Env, EntryContentResponse, SyncResult } from '../types'
+import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl, buildClassMap, applyClassMap, cleanEntryHtml } from './parser'
 import { fetchPageLikeBrowser, humanDelay } from './http-client'
 
 // ─── Constants ──────────────────────────────────────────────
 
-const STORAGE_KEY_STATE = 'crawl_state'
-const STORAGE_KEY_ENTRIES = 'crawl_entries'
 const STORAGE_KEY_CURSOR = 'crawl_cursor'
 const STORAGE_KEY_LAST_CRAWL_MAP = 'last_crawl_map'
 
-const ALARM_INTERVAL_MS = 24 * 60 * 60 * 1000
 const BASE_CRAWL_DELAY_MS = 1200
 const FETCH_TIMEOUT_MS = 15_000
 const MAX_RETRIES = 2
-const SERIES_PER_ALARM = 1
+const BATCH_SIZE = 50
+const DAILY_CRON_HOUR_UTC = 3 // 03:00 UTC
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -30,6 +28,17 @@ function errorResponse(error: string, status = 400): Response {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Calculate ms until the next occurrence of DAILY_CRON_HOUR_UTC:00 */
+function getNextAlarmTime(): number {
+  const now = new Date()
+  const next = new Date(now)
+  next.setUTCHours(DAILY_CRON_HOUR_UTC, 0, 0, 0)
+  if (next.getTime() <= now.getTime()) {
+    next.setUTCDate(next.getUTCDate() + 1)
+  }
+  return next.getTime()
 }
 
 // ─── Durable Object ─────────────────────────────────────────
@@ -70,6 +79,10 @@ export class ScpCrawlerDo {
       if (method === 'POST' && path.endsWith('/crawl')) {
         return await this.handleTriggerCrawl(language, url)
       }
+      if (method === 'GET' && /\/entry\/\d+$/.test(path)) {
+        const scpNumber = parseInt(path.match(/\/entry\/(\d+)$/)![1], 10)
+        return await this.handleEntryContent(language, scpNumber)
+      }
 
       return errorResponse('Not found', 404)
     } catch (err) {
@@ -80,17 +93,18 @@ export class ScpCrawlerDo {
 
   async alarm(): Promise<void> {
     try {
-      const state = await this.getStoredState()
-      if (state.totalEntries === 0) {
-        await this.crawlAll('en')
-      } else {
-        const language = (await this.getStoredLanguage()) as 'en' | 'cn'
-        await this.crawlIncremental(language)
+      // Daily crawl: process both languages sequentially
+      for (const language of ['en', 'cn'] as const) {
+        const state = await this.getStateFromD1(language)
+        if (state.status !== 'crawling') {
+          await this.crawlDaily(language)
+        }
       }
     } catch (err) {
       console.error('[ScpCrawlerDo] Alarm error:', err)
     }
-    await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS)
+    // Re-arm alarm for the next fixed daily time
+    await this.state.storage.setAlarm(getNextAlarmTime())
   }
 
   // ─── Route Handlers ─────────────────────────────────────
@@ -221,6 +235,93 @@ export class ScpCrawlerDo {
     })
   }
 
+  // ─── Entry Content ───────────────────────────────────────
+
+  private async handleEntryContent(language: 'en' | 'cn', scpNumber: number): Promise<Response> {
+    // 1. Check D1 for cached content
+    const row = await this.env.DB.prepare(
+      'SELECT name, object_class, content, content_fetched_at FROM scp_entries WHERE scp_number = ? AND language = ?'
+    ).bind(scpNumber, language).first<{
+      name: string
+      object_class: string
+      content: string | null
+      content_fetched_at: string | null
+    }>()
+
+    if (!row) {
+      return jsonResponse({
+        success: false,
+        error: `SCP-${scpNumber} not found in index for language '${language}'`,
+      }, 404)
+    }
+
+    // 2. If content is cached, return it
+    if (row.content) {
+      const resp: EntryContentResponse = {
+        success: true,
+        scpNumber,
+        language,
+        status: 'cached',
+        content: row.content,
+        name: row.name,
+        objectClass: row.object_class,
+        fetchedAt: row.content_fetched_at ?? undefined,
+      }
+      return jsonResponse(resp)
+    }
+
+    // 3. Content not cached — return pending and kick off background fetch
+    const ctx = this.state as unknown as { waitUntil?: (p: Promise<void>) => void }
+    if (typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(this.fetchAndStoreEntryContent(language, scpNumber))
+    } else {
+      this.fetchAndStoreEntryContent(language, scpNumber).catch(() => {})
+    }
+
+    const resp: EntryContentResponse = {
+      success: true,
+      scpNumber,
+      language,
+      status: 'pending',
+      name: row.name,
+      objectClass: row.object_class,
+      message: 'Content is being fetched. Poll this endpoint again shortly.',
+    }
+    return jsonResponse(resp)
+  }
+
+  /**
+   * Fetch an individual SCP entry page from the wiki, clean the HTML,
+   * and store it in D1. Called via waitUntil from handleEntryContent.
+   */
+  private async fetchAndStoreEntryContent(language: 'en' | 'cn', scpNumber: number): Promise<void> {
+    const baseUrl = getWikiBaseUrl(language)
+    const padded = String(scpNumber).padStart(3, '0')
+    const url = `${baseUrl}/scp-${padded}`
+
+    try {
+      const result = await fetchPageLikeBrowser(url, {
+        baseUrl,
+        language,
+        fetcher: this.fetcher,
+        timeoutMs: FETCH_TIMEOUT_MS,
+      })
+
+      if (!result.ok || !result.html) {
+        console.error(`[ScpCrawlerDo] Failed to fetch entry scp-${scpNumber} (${language}): ${result.error ?? `HTTP ${result.status}`}`)
+        return
+      }
+
+      const cleaned = cleanEntryHtml(result.html, baseUrl)
+
+      await this.env.DB.prepare(
+        `UPDATE scp_entries SET content = ?, content_fetched_at = datetime('now') WHERE scp_number = ? AND language = ?`
+      ).bind(cleaned, scpNumber, language).run()
+    } catch (err) {
+      console.error(`[ScpCrawlerDo] Error fetching entry scp-${scpNumber} (${language}):`, err)
+    }
+  }
+
   // ─── D1 Helpers ─────────────────────────────────────────
 
   private async getStateFromD1(language: 'en' | 'cn'): Promise<CrawlState> {
@@ -273,9 +374,9 @@ export class ScpCrawlerDo {
         updated_at = excluded.updated_at
     `)
 
-    // D1 supports batch operations — process in chunks of 20
-    for (let i = 0; i < entries.length; i += 20) {
-      const chunk = entries.slice(i, i + 20)
+    // D1 supports batch operations — process in chunks of BATCH_SIZE
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const chunk = entries.slice(i, i + BATCH_SIZE)
       const batch = chunk.map((e) =>
         stmt.bind(e.scpNumber, language, e.name, e.objectClass, e.url, e.series)
       )
@@ -301,35 +402,79 @@ export class ScpCrawlerDo {
     }
   }
 
-  // ─── Incremental Crawl ──────────────────────────────────
+  // ─── Daily Scheduled Crawl ──────────────────────────────
 
-  private async crawlIncremental(language: 'en' | 'cn'): Promise<void> {
-    const cursor = await this.state.storage.get<number>(STORAGE_KEY_CURSOR) ?? 0
-    const lastCrawlMap = await this.state.storage.get<Record<number, number>>(STORAGE_KEY_LAST_CRAWL_MAP) ?? {}
-    const baseUrl = getWikiBaseUrl(language)
+  /**
+   * Fetch all existing entries from D1 for change detection.
+   * Returns a map keyed by scp_number for O(1) lookup.
+   */
+  private async queryExistingEntries(language: 'en' | 'cn'): Promise<Map<number, CrawlEntry>> {
+    const map = new Map<number, CrawlEntry>()
+    let offset = 0
+    const pageSize = 500
 
-    const seriesToCrawl: number[] = []
-    for (let i = 0; i < SERIES_PER_ALARM; i++) {
-      seriesToCrawl.push((cursor + i) % SERIES_PAGES.length)
+    // Paginated query to avoid unbounded result sets
+    while (true) {
+      const rows = await this.env.DB.prepare(
+        'SELECT scp_number, name, object_class, url, series FROM scp_entries WHERE language = ? ORDER BY scp_number ASC LIMIT ? OFFSET ?'
+      ).bind(language, pageSize, offset).all<{
+        scp_number: number
+        name: string
+        object_class: string
+        url: string
+        series: number
+      }>()
+
+      for (const r of rows.results) {
+        map.set(r.scp_number, {
+          scpNumber: r.scp_number,
+          name: r.name,
+          objectClass: r.object_class,
+          url: r.url,
+          series: r.series,
+        })
+      }
+
+      if (rows.results.length < pageSize) break
+      offset += pageSize
     }
+
+    return map
+  }
+
+  /**
+   * Daily crawl — fetches all series pages, detects additions/changes
+   * compared to D1, and upserts only the diff in batches of BATCH_SIZE.
+   * Runs at a fixed time via DO alarm.
+   */
+  private async crawlDaily(language: 'en' | 'cn'): Promise<void> {
+    const baseUrl = getWikiBaseUrl(language)
+    const lastCrawlMap: Record<number, number> = {}
+    const errors: string[] = []
 
     await this.upsertStateToD1(language, { status: 'crawling' })
 
-    const newEntries: CrawlEntry[] = []
-    let crawlErrors = 0
+    // Build object class map from wiki tag pages (non-fatal if it fails)
+    let classMap: Map<number, string> | null = null
+    try {
+      classMap = await buildClassMap({ language, fetcher: this.fetcher })
+    } catch {
+      // Continue without class map — entries will have Unknown class
+    }
 
-    for (let i = 0; i < seriesToCrawl.length; i++) {
-      const seriesIdx = seriesToCrawl[i]
-      const pageSlug = SERIES_PAGES[seriesIdx]
-      const seriesNum = seriesIdx + 1
+    // Fetch all series pages and collect entries
+    const fetchedEntries: CrawlEntry[] = []
+    for (let i = 0; i < SERIES_PAGES.length; i++) {
+      const pageSlug = SERIES_PAGES[i]
       const pageUrl = `${baseUrl}/${pageSlug}`
+      const seriesNum = i + 1
 
       const result = await fetchPageLikeBrowser(pageUrl, {
         baseUrl, language, fetcher: this.fetcher, timeoutMs: FETCH_TIMEOUT_MS,
       })
 
       if (!result.ok || !result.html) {
-        crawlErrors++
+        errors.push(`Failed to fetch ${pageSlug}: ${result.error ?? `HTTP ${result.status}`}`)
         continue
       }
 
@@ -337,32 +482,66 @@ export class ScpCrawlerDo {
         baseUrl, language, seriesHint: seriesNum,
       })
 
-      newEntries.push(...pageEntries)
+      fetchedEntries.push(...pageEntries)
       lastCrawlMap[seriesNum] = Date.now()
 
-      if (i < seriesToCrawl.length - 1) {
+      if (i < SERIES_PAGES.length - 1) {
         await delay(humanDelay(BASE_CRAWL_DELAY_MS))
       }
     }
 
-    // Write to D1
-    if (newEntries.length > 0) {
-      await this.upsertEntriesToD1(language, newEntries)
+    // Apply class map to fill in Unknown entries
+    if (classMap) {
+      applyClassMap(fetchedEntries, classMap)
     }
 
+    // Change detection: compare fetched entries against D1
+    const existing = await this.queryExistingEntries(language)
+    const toUpsert: CrawlEntry[] = []
+    let added = 0
+    let changed = 0
+    let unchanged = 0
+
+    for (const entry of fetchedEntries) {
+      const prev = existing.get(entry.scpNumber)
+      if (!prev) {
+        // New entry not in D1
+        toUpsert.push(entry)
+        added++
+      } else if (
+        prev.name !== entry.name ||
+        prev.objectClass !== entry.objectClass ||
+        prev.url !== entry.url
+      ) {
+        // Existing entry with changes
+        toUpsert.push(entry)
+        changed++
+      } else {
+        unchanged++
+      }
+    }
+
+    // Upsert only new/changed entries in batches of BATCH_SIZE
+    if (toUpsert.length > 0) {
+      await this.upsertEntriesToD1(language, toUpsert)
+    }
+
+    // Update crawl state in D1
     const totalRow = await this.env.DB.prepare(
       'SELECT COUNT(*) as total FROM scp_entries WHERE language = ?'
     ).bind(language).first<{ total: number }>()
 
-    const nextCursor = (cursor + SERIES_PER_ALARM) % SERIES_PAGES.length
-    await this.state.storage.put(STORAGE_KEY_CURSOR, nextCursor)
+    const syncResult: SyncResult = { added, changed, unchanged }
+    console.log(`[ScpCrawlerDo] Daily crawl ${language}: +${added} ~${changed} =${unchanged} (${toUpsert.length} upserted)`)
+
     await this.state.storage.put(STORAGE_KEY_LAST_CRAWL_MAP, lastCrawlMap)
 
     await this.upsertStateToD1(language, {
-      status: crawlErrors === seriesToCrawl.length ? 'error' : 'idle',
+      status: errors.length > 0 && fetchedEntries.length === 0 ? 'error' : 'idle',
       lastCrawl: Date.now(),
       totalEntries: totalRow?.total ?? 0,
-      error: crawlErrors === seriesToCrawl.length ? 'All series fetches failed' : undefined,
+      error: errors.length > 0 && fetchedEntries.length === 0 ? errors[errors.length - 1] : undefined,
+      lastSyncResult: syncResult,
     })
   }
 
@@ -380,6 +559,14 @@ export class ScpCrawlerDo {
     const errors: string[] = []
 
     await this.upsertStateToD1(language, { status: 'crawling' })
+
+    // Build object class map from wiki tag pages (non-fatal if it fails)
+    let classMap: Map<number, string> | null = null
+    try {
+      classMap = await buildClassMap({ language, fetcher: this.fetcher })
+    } catch {
+      // Continue without class map — entries will have Unknown class
+    }
 
     // Find the highest SCP number already in D1 for this language
     let startAfter = 0
@@ -429,6 +616,11 @@ export class ScpCrawlerDo {
       }
     }
 
+    // Apply class map to fill in Unknown entries
+    if (classMap) {
+      applyClassMap(collected, classMap)
+    }
+
     // Write collected entries to D1
     if (collected.length > 0) {
       await this.upsertEntriesToD1(language, collected)
@@ -449,6 +641,6 @@ export class ScpCrawlerDo {
       error: errors.length > 0 && collected.length === 0 ? errors[errors.length - 1] : undefined,
     })
 
-    await this.state.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS)
+    await this.state.storage.setAlarm(getNextAlarmTime())
   }
 }

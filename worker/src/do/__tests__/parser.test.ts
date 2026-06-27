@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest'
-import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl } from '../parser'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { parseScpIndexPage, SERIES_PAGES, getWikiBaseUrl, buildClassMap, applyClassMap, cleanEntryHtml } from '../parser'
+import { fetchPageLikeBrowser } from '../http-client'
+import type { CrawlEntry } from '../../types'
+
+// Mock the http-client module used by buildClassMap
+vi.mock('../http-client', () => ({
+  fetchPageLikeBrowser: vi.fn(),
+  humanDelay: vi.fn(() => 0),
+}))
 
 describe('parseScpIndexPage', () => {
   const baseUrl = 'https://scp-wiki.wikidot.com'
@@ -301,5 +309,409 @@ describe('getWikiBaseUrl', () => {
 
   it('returns Chinese wiki URL for cn', () => {
     expect(getWikiBaseUrl('cn')).toBe('https://scp-wiki-cn.wikidot.com')
+  })
+})
+
+// ─── buildClassMap ──────────────────────────────────────────
+
+describe('buildClassMap', () => {
+  const mockedFetch = vi.mocked(fetchPageLikeBrowser)
+
+  beforeEach(() => {
+    mockedFetch.mockReset()
+  })
+
+  function tagPageHtml(scps: number[], classTag: string): string {
+    const links = scps
+      .map((n) => `<a href="/scp-${String(n).padStart(3, '0')}">SCP-${String(n).padStart(3, '0')}</a>`)
+      .join(' ')
+    return `<div class="pages-tag-cloud">${links}</div>`
+  }
+
+  it('builds map from single-page tag pages', async () => {
+    mockedFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([173, 999], 'safe') })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([682], 'euclid') })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([2317], 'keter') })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([999], 'thaumiel') })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([], 'apollyon') })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([], 'neutralized') })
+
+    const classMap = await buildClassMap({ language: 'en' })
+
+    expect(classMap.get(173)).toBe('Safe')
+    expect(classMap.get(999)).toBe('Safe')
+    expect(classMap.get(682)).toBe('Euclid')
+    expect(classMap.get(2317)).toBe('Keter')
+    // 999 appears in both Safe and Thaumiel — first wins
+    expect(classMap.get(999)).toBe('Safe')
+  })
+
+  it('handles pagination across multiple pages', async () => {
+    // Safe class: 2 pages
+    const page1Html = tagPageHtml([173, 999], 'safe') +
+      '<div class="pager"><a href="/system:page-tags/tag/safe?p=2">2</a></div>'
+    const page2Html = tagPageHtml([500, 458], 'safe')
+
+    mockedFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, html: page1Html })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: page2Html })
+      // Remaining classes return empty
+      .mockResolvedValue({ ok: true, status: 200, html: tagPageHtml([], 'x') })
+
+    const classMap = await buildClassMap({ language: 'en' })
+
+    expect(classMap.get(173)).toBe('Safe')
+    expect(classMap.get(500)).toBe('Safe')
+    expect(classMap.get(458)).toBe('Safe')
+  })
+
+  it('skips failed class fetches without throwing', async () => {
+    mockedFetch
+      .mockResolvedValueOnce({ ok: false, status: 500, html: null, error: 'Server error' })
+      .mockResolvedValueOnce({ ok: true, status: 200, html: tagPageHtml([682], 'euclid') })
+      .mockResolvedValue({ ok: true, status: 200, html: tagPageHtml([], 'x') })
+
+    const classMap = await buildClassMap({ language: 'en' })
+
+    // Safe failed — no entries
+    expect(classMap.get(173)).toBeUndefined()
+    // Euclid succeeded
+    expect(classMap.get(682)).toBe('Euclid')
+  })
+
+  it('uses CN base URL for Chinese language', async () => {
+    mockedFetch.mockResolvedValue({ ok: true, status: 200, html: tagPageHtml([], 'x') })
+
+    await buildClassMap({ language: 'cn' })
+
+    // Verify the first call used the CN wiki URL
+    const firstCallUrl = mockedFetch.mock.calls[0][0] as string
+    expect(firstCallUrl).toContain('scp-wiki-cn.wikidot.com')
+    expect(firstCallUrl).toContain('/system:page-tags/tag/safe')
+  })
+
+  it('returns empty map when all fetches fail', async () => {
+    mockedFetch.mockResolvedValue({ ok: false, status: 500, html: null })
+
+    const classMap = await buildClassMap({ language: 'en' })
+
+    expect(classMap.size).toBe(0)
+  })
+})
+
+// ─── applyClassMap ──────────────────────────────────────────
+
+describe('applyClassMap', () => {
+  function makeEntry(scpNumber: number, objectClass = 'Unknown'): CrawlEntry {
+    return { scpNumber, name: `SCP-${scpNumber}`, objectClass, url: '', series: 1 }
+  }
+
+  it('fills in Unknown classes from the map', () => {
+    const entries = [makeEntry(173), makeEntry(682), makeEntry(999)]
+    const classMap = new Map<number, string>([
+      [173, 'Euclid'],
+      [682, 'Keter'],
+    ])
+
+    applyClassMap(entries, classMap)
+
+    expect(entries[0].objectClass).toBe('Euclid')
+    expect(entries[1].objectClass).toBe('Keter')
+    expect(entries[2].objectClass).toBe('Unknown')
+  })
+
+  it('does not overwrite known classes', () => {
+    const entries = [makeEntry(173, 'Safe')]
+    const classMap = new Map<number, string>([[173, 'Euclid']])
+
+    applyClassMap(entries, classMap)
+
+    // Already had 'Safe' — should not be overwritten
+    expect(entries[0].objectClass).toBe('Safe')
+  })
+
+  it('handles empty class map', () => {
+    const entries = [makeEntry(173)]
+    const classMap = new Map<number, string>()
+
+    applyClassMap(entries, classMap)
+
+    expect(entries[0].objectClass).toBe('Unknown')
+  })
+
+  it('handles empty entries array', () => {
+    const entries: CrawlEntry[] = []
+    const classMap = new Map<number, string>([[173, 'Euclid']])
+
+    applyClassMap(entries, classMap)
+
+    expect(entries).toHaveLength(0)
+  })
+})
+
+// ─── cleanEntryHtml ─────────────────────────────────────────
+
+describe('cleanEntryHtml', () => {
+  const baseUrl = 'https://scp-wiki.wikidot.com'
+
+  it('extracts content from #page-content div', () => {
+    const html = `
+      <html><body>
+        <div id="header">Header</div>
+        <div id="page-content">
+          <p>SCP-173 - The Sculpture</p>
+          <p>Object Class: Euclid</p>
+        </div>
+        <div id="footer">Footer</div>
+      </body></html>
+    `
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('SCP-173 - The Sculpture')
+    expect(result).toContain('Object Class: Euclid')
+    expect(result).not.toContain('Header')
+    expect(result).not.toContain('Footer')
+    expect(result).toContain('class="scp-content"')
+  })
+
+  it('removes script tags', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <script>alert('xss')</script>
+      <script type="text/javascript">var x = 1;</script>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('alert')
+    expect(result).not.toContain('var x')
+    expect(result).not.toContain('<script')
+  })
+
+  it('removes style tags', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <style>.foo { color: red; }</style>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('.foo')
+    expect(result).not.toContain('<style')
+  })
+
+  it('removes noscript tags', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <noscript>JavaScript required</noscript>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('JavaScript required')
+  })
+
+  it('removes page-rate-widget-box elements', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <div class="page-rate-widget-box">
+        <span class="rate-points">+123</span>
+      </div>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('page-rate-widget-box')
+    expect(result).not.toContain('+123')
+  })
+
+  it('removes edit-info elements', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <div class="edit-info">
+        <a href="/edit">Edit</a>
+      </div>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('edit-info')
+    expect(result).not.toContain('Edit')
+  })
+
+  it('removes page-tags elements', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <div class="page-tags">
+        <a href="/tag/euclid">euclid</a>
+      </div>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('page-tags')
+  })
+
+  it('removes licensebox elements', () => {
+    const html = `<div id="page-content">
+      <p>Content</p>
+      <div class="licensebox">CC BY-SA 3.0</div>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).not.toContain('licensebox')
+    expect(result).not.toContain('CC BY-SA')
+  })
+
+  it('removes onclick and other event handler attributes', () => {
+    const html = `<div id="page-content">
+      <p onclick="alert('xss')">Content</p>
+      <a href="/scp-173" onmouseover="doSomething()">Link</a>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).toContain('Link')
+    expect(result).not.toContain('onclick')
+    expect(result).not.toContain('onmouseover')
+    expect(result).not.toContain('alert')
+    expect(result).not.toContain('doSomething')
+  })
+
+  it('removes style attributes', () => {
+    const html = `<div id="page-content">
+      <p style="color: red; font-size: 14px;">Content</p>
+      <span style='background: blue;'>Styled</span>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Content')
+    expect(result).toContain('Styled')
+    expect(result).not.toContain('style=')
+    expect(result).not.toContain('color: red')
+  })
+
+  it('converts relative URLs to absolute', () => {
+    const html = `<div id="page-content">
+      <a href="/scp-999">SCP-999</a>
+      <img src="/local--files/scp-173/image.jpg">
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('href="https://scp-wiki.wikidot.com/scp-999"')
+    expect(result).toContain('src="https://scp-wiki.wikidot.com/local--files/scp-173/image.jpg"')
+  })
+
+  it('does not modify already-absolute URLs', () => {
+    const html = `<div id="page-content">
+      <a href="https://example.com/page">External</a>
+      <img src="https://example.com/image.jpg">
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('href="https://example.com/page"')
+    expect(result).toContain('src="https://example.com/image.jpg"')
+  })
+
+  it('wraps output in .scp-content container', () => {
+    const html = `<div id="page-content"><p>Content</p></div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toMatch(/^<div class="scp-content">/)
+    expect(result).toMatch(/<\/div>$/)
+  })
+
+  it('handles Chinese wiki base URL', () => {
+    const cnBaseUrl = 'https://scp-wiki-cn.wikidot.com'
+    const html = `<div id="page-content">
+      <a href="/scp-173">SCP-173</a>
+    </div>`
+    const result = cleanEntryHtml(html, cnBaseUrl)
+
+    expect(result).toContain('href="https://scp-wiki-cn.wikidot.com/scp-173"')
+  })
+
+  it('falls back to body content when no #page-content found', () => {
+    const html = `<html><body>
+      <p>Fallback content</p>
+    </body></html>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('Fallback content')
+    expect(result).toContain('class="scp-content"')
+  })
+
+  it('preserves nested div structure inside page-content', () => {
+    const html = `<div id="page-content">
+      <div class="collapsible-block">
+        <div class="collapsible-block-folded">
+          <a href="javascript:;">Show</a>
+        </div>
+        <div class="collapsible-block-unfolded">
+          <p>Hidden content</p>
+        </div>
+      </div>
+    </div>`
+    const result = cleanEntryHtml(html, baseUrl)
+
+    expect(result).toContain('collapsible-block')
+    expect(result).toContain('Hidden content')
+  })
+
+  it('handles a realistic SCP entry page', () => {
+    const html = `<!DOCTYPE html>
+<html>
+<head><title>SCP-173 - SCP Foundation</title></head>
+<body>
+  <div id="header">...</div>
+  <div id="page-content">
+    <div style="text-align: center;">
+      <h1 id="toc0">SCP-173</h1>
+    </div>
+    <div class="scp-image-block" style="width:300px;">
+      <img src="/local--files/scp-173/Image.png" style="width:300px;">
+      <div class="scp-image-caption">SCP-173</div>
+    </div>
+    <p><strong>Item #:</strong> SCP-173</p>
+    <p><strong>Object Class:</strong> Euclid</p>
+    <hr>
+    <h2 id="toc1">Special Containment Procedures</h2>
+    <p>Item SCP-173 is to be kept in a locked container at all times.</p>
+    <h2 id="toc2">Description</h2>
+    <p>SCP-173 is a concrete sculpture of unknown origin.</p>
+    <div class="page-rate-widget-box">
+      <span>+4200</span>
+    </div>
+    <div class="page-tags">
+      <a href="/tag/euclid">euclid</a>
+      <a href="/tag/sculpture">sculpture</a>
+    </div>
+  </div>
+  <div id="footer">...</div>
+  <script>var wikidot = {};</script>
+</body>
+</html>`
+
+    const result = cleanEntryHtml(html, baseUrl)
+
+    // Content preserved
+    expect(result).toContain('SCP-173')
+    expect(result).toContain('Special Containment Procedures')
+    expect(result).toContain('concrete sculpture')
+    expect(result).toContain('Euclid')
+
+    // Non-content removed
+    expect(result).not.toContain('page-rate-widget-box')
+    expect(result).not.toContain('+4200')
+    expect(result).not.toContain('page-tags')
+    expect(result).not.toContain('wikidot = {}')
+    expect(result).not.toContain('style=')
+    expect(result).not.toContain('Header')
+    expect(result).not.toContain('Footer')
+
+    // Wrapped in container
+    expect(result).toContain('class="scp-content"')
   })
 })

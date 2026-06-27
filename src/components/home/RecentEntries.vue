@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { entries } from '@/data/entries'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
-import { useI18n } from 'vue-i18n'
+import type { CrawlEntry } from '@/services/crawler'
+import type { ObjectClass } from '@/types'
 
 const { t } = useI18n()
-const recent = entries.slice(0, 4)
+
+const props = defineProps<{
+  entries: CrawlEntry[]
+  language: 'en' | 'cn'
+}>()
+
+const recent = computed(() => props.entries.slice(0, 4))
 </script>
 
 <template>
@@ -20,24 +28,27 @@ const recent = entries.slice(0, 4)
       </router-link>
     </div>
 
-    <div class="entries-grid">
+    <div v-if="recent.length" class="entries-grid">
       <router-link
         v-for="entry in recent"
-        :key="entry.id"
-        :to="`/entry/${entry.id}`"
+        :key="entry.scpNumber"
+        :to="'/entry/' + language + '/' + entry.scpNumber"
         class="entry-card"
       >
         <div class="entry-header">
-          <span class="entry-id">SCP-{{ String(entry.number).padStart(3, '0') }}</span>
-          <ClassBar :object-class="entry.objectClass" />
+          <span class="entry-id">SCP-{{ String(entry.scpNumber).padStart(3, '0') }}</span>
+          <ClassBar :object-class="entry.objectClass as ObjectClass" />
         </div>
-        <h3 class="entry-name">{{ t(`entries.${entry.id}.name`) }}</h3>
-        <p class="entry-summary">{{ t(`entries.${entry.id}.summary`) }}</p>
+        <h3 class="entry-name">{{ entry.name || `SCP-${entry.scpNumber}` }}</h3>
         <div class="entry-footer">
-          <Badge :variant="entry.objectClass.toLowerCase() as any">{{ t(`classes.${entry.objectClass}`) }}</Badge>
-          <span class="entry-date">{{ entry.date }}</span>
+          <Badge :variant="entry.objectClass.toLowerCase() as any">{{ entry.objectClass }}</Badge>
         </div>
       </router-link>
+    </div>
+
+    <div v-else class="empty-state">
+      <span class="empty-icon">◇</span>
+      <p class="empty-text">{{ t('catalog.empty') }}</p>
     </div>
   </section>
 </template>
@@ -119,29 +130,29 @@ const recent = entries.slice(0, 4)
   margin-bottom: var(--space-sm);
 }
 
-.entry-summary {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  line-height: var(--leading-relaxed);
-  flex: 1;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .entry-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-md);
+  margin-top: auto;
   padding-top: var(--space-md);
   border-top: 1px solid var(--border-subtle);
 }
 
-.entry-date {
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
+.empty-state {
+  text-align: center;
+  padding: var(--space-3xl);
+}
+
+.empty-icon {
+  font-size: 3rem;
   color: var(--text-tertiary);
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.empty-text {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
 }
 </style>
