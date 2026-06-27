@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useAuthStore } from './auth'
 import {
   fetchBookmarks,
   addBookmark as apiAdd,
@@ -18,8 +17,6 @@ const TAB_KEY = 'scp-activity-tab'
 export type ActivityTab = 'bookmarks' | 'history'
 
 export const useUserActivityStore = defineStore('userActivity', () => {
-  const auth = useAuthStore()
-
   // ─── Tab State ───────────────────────────────────────────
 
   const activeTab = ref<ActivityTab>(
@@ -56,10 +53,9 @@ export const useUserActivityStore = defineStore('userActivity', () => {
   }
 
   async function loadBookmarks() {
-    if (!auth.token) return
     bookmarkLoading.value = true
     bookmarkError.value = ''
-    const res = await fetchBookmarks(auth.token)
+    const res = await fetchBookmarks()
     bookmarkLoading.value = false
 
     if (res.ok) {
@@ -70,9 +66,8 @@ export const useUserActivityStore = defineStore('userActivity', () => {
   }
 
   async function addBookmark(lang: string, scpNumber: number): Promise<boolean> {
-    if (!auth.token) return false
     bookmarkError.value = ''
-    const res = await apiAdd(lang, scpNumber, auth.token)
+    const res = await apiAdd(lang, scpNumber)
 
     if (res.ok) {
       if (!isBookmarked(lang, scpNumber)) {
@@ -93,9 +88,8 @@ export const useUserActivityStore = defineStore('userActivity', () => {
   }
 
   async function removeBookmark(lang: string, scpNumber: number): Promise<boolean> {
-    if (!auth.token) return false
     bookmarkError.value = ''
-    const res = await apiRemove(lang, scpNumber, auth.token)
+    const res = await apiRemove(lang, scpNumber)
 
     if (res.ok) {
       bookmarks.value = bookmarks.value.filter(
@@ -116,8 +110,7 @@ export const useUserActivityStore = defineStore('userActivity', () => {
   }
 
   async function checkBookmark(lang: string, scpNumber: number): Promise<boolean> {
-    if (!auth.token) return false
-    const res = await apiCheck(lang, scpNumber, auth.token)
+    const res = await apiCheck(lang, scpNumber)
     if (res.ok) return res.data.bookmarked
     return false
   }

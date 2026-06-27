@@ -108,10 +108,10 @@ function createEnv(overrides?: Partial<Env>): Env {
 }
 
 describe('Auth Routes', () => {
-  describe('POST /api/auth/register', () => {
+  describe('POST /api/v1/auth/register', () => {
     it('registers a new user successfully', async () => {
       const res = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -132,7 +132,7 @@ describe('Auth Routes', () => {
 
     it('rejects codename that is too short', async () => {
       const res = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -148,7 +148,7 @@ describe('Auth Routes', () => {
 
     it('rejects codename with special characters', async () => {
       const res = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -163,7 +163,7 @@ describe('Auth Routes', () => {
 
     it('rejects password that is too short', async () => {
       const res = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -181,7 +181,7 @@ describe('Auth Routes', () => {
       const env = createEnv()
       // Register first user
       await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -192,7 +192,7 @@ describe('Auth Routes', () => {
 
       // Try to register with same codename
       const res = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -207,12 +207,12 @@ describe('Auth Routes', () => {
     })
   })
 
-  describe('POST /api/auth/login', () => {
+  describe('POST /api/v1/auth/login', () => {
     it('logs in with correct credentials', async () => {
       const env = createEnv()
       // Register first
       await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -223,7 +223,7 @@ describe('Auth Routes', () => {
 
       // Login
       const res = await app.request(
-        '/api/auth/login',
+        '/api/v1/auth/login',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -241,7 +241,7 @@ describe('Auth Routes', () => {
     it('rejects wrong password', async () => {
       const env = createEnv()
       await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -251,7 +251,7 @@ describe('Auth Routes', () => {
       )
 
       const res = await app.request(
-        '/api/auth/login',
+        '/api/v1/auth/login',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -267,7 +267,7 @@ describe('Auth Routes', () => {
 
     it('rejects nonexistent user', async () => {
       const res = await app.request(
-        '/api/auth/login',
+        '/api/v1/auth/login',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -282,7 +282,7 @@ describe('Auth Routes', () => {
 
     it('rejects missing codename', async () => {
       const res = await app.request(
-        '/api/auth/login',
+        '/api/v1/auth/login',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -297,7 +297,7 @@ describe('Auth Routes', () => {
 
     it('rejects missing password', async () => {
       const res = await app.request(
-        '/api/auth/login',
+        '/api/v1/auth/login',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -311,12 +311,12 @@ describe('Auth Routes', () => {
     })
   })
 
-  describe('GET /api/auth/me', () => {
+  describe('GET /api/v1/auth/me', () => {
     it('returns user profile with valid token', async () => {
       const env = createEnv()
       // Register and get token
       const regRes = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -328,7 +328,7 @@ describe('Auth Routes', () => {
       const token = regJson.token
 
       const res = await app.request(
-        '/api/auth/me',
+        '/api/v1/auth/me',
         {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}` },
@@ -342,7 +342,7 @@ describe('Auth Routes', () => {
     })
 
     it('returns 401 without token', async () => {
-      const res = await app.request('/api/auth/me', { method: 'GET' }, createEnv())
+      const res = await app.request('/api/v1/auth/me', { method: 'GET' }, createEnv())
       const json = await parseJson(res)
       expect(res.status).toBe(401)
       expect(json.success).toBe(false)
@@ -350,7 +350,7 @@ describe('Auth Routes', () => {
 
     it('returns 401 with invalid token', async () => {
       const res = await app.request(
-        '/api/auth/me',
+        '/api/v1/auth/me',
         {
           method: 'GET',
           headers: { Authorization: 'Bearer invalid.token.here' },
@@ -363,11 +363,11 @@ describe('Auth Routes', () => {
     })
   })
 
-  describe('PUT /api/auth/profile', () => {
+  describe('PUT /api/v1/auth/profile', () => {
     async function setupAuthenticatedUser() {
       const env = createEnv()
       const regRes = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -383,7 +383,7 @@ describe('Auth Routes', () => {
       const { env, token } = await setupAuthenticatedUser()
 
       const res = await app.request(
-        '/api/auth/profile',
+        '/api/v1/auth/profile',
         {
           method: 'PUT',
           headers: {
@@ -404,7 +404,7 @@ describe('Auth Routes', () => {
       const { env, token } = await setupAuthenticatedUser()
 
       const res = await app.request(
-        '/api/auth/profile',
+        '/api/v1/auth/profile',
         {
           method: 'PUT',
           headers: {
@@ -424,7 +424,7 @@ describe('Auth Routes', () => {
       const { env, token } = await setupAuthenticatedUser()
 
       const res = await app.request(
-        '/api/auth/profile',
+        '/api/v1/auth/profile',
         {
           method: 'PUT',
           headers: {
@@ -445,7 +445,7 @@ describe('Auth Routes', () => {
       const { env, token } = await setupAuthenticatedUser()
 
       const res = await app.request(
-        '/api/auth/profile',
+        '/api/v1/auth/profile',
         {
           method: 'PUT',
           headers: {
@@ -466,7 +466,7 @@ describe('Auth Routes', () => {
       const env = createEnv()
       // Register two users
       await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -475,7 +475,7 @@ describe('Auth Routes', () => {
         env
       )
       const regRes2 = await app.request(
-        '/api/auth/register',
+        '/api/v1/auth/register',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -487,7 +487,7 @@ describe('Auth Routes', () => {
 
       // Try to change user_two's codename to user_one
       const res = await app.request(
-        '/api/auth/profile',
+        '/api/v1/auth/profile',
         {
           method: 'PUT',
           headers: {
@@ -506,7 +506,7 @@ describe('Auth Routes', () => {
 
     it('returns 401 without authentication', async () => {
       const res = await app.request(
-        '/api/auth/profile',
+        '/api/v1/auth/profile',
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

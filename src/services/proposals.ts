@@ -39,33 +39,29 @@ export function fetchProposals(
   page = 1,
   limit = 20,
   status?: string,
-  category?: string,
-  token?: string
+  category?: string
 ): Promise<ApiResult<ProposalsListResponse>> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   if (status) params.set('status', status)
   if (category) params.set('category', category)
-  return apiGet<ProposalsListResponse>(`/api/proposals?${params}`, token)
+  return apiGet<ProposalsListResponse>(`/proposals?${params}`)
 }
 
 export function fetchProposal(
-  id: number,
-  token?: string
+  id: number
 ): Promise<ApiResult<ProposalResponse>> {
-  return apiGet<ProposalResponse>(`/api/proposals/${id}`, token)
+  return apiGet<ProposalResponse>(`/proposals/${id}`)
 }
 
 export function createProposal(
-  data: { title: string; content: string; category: string },
-  token: string
+  data: { title: string; content: string; category: string }
 ): Promise<ApiResult<{ proposal: ProposalPublic }>> {
-  return apiPost<{ proposal: ProposalPublic }>('/api/proposals', data, token)
+  return apiPost<{ proposal: ProposalPublic }>('/proposals', data)
 }
 
 export function voteProposal(
   id: number,
-  vote: 'for' | 'against' | 'abstain',
-  token: string
+  vote: 'for' | 'against' | 'abstain'
 ): Promise<ApiResult<VoteResponse>> {
-  return apiPost<VoteResponse>(`/api/proposals/${id}/vote`, { vote }, token)
+  return apiPost<VoteResponse>(`/proposals/${id}/vote`, { vote })
 }

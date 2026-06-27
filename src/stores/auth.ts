@@ -67,7 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(codename: string, password: string): Promise<boolean> {
     loading.value = true
     clearError()
-    const res = await apiPost<AuthPayload>('/api/auth/register', { codename, password })
+    const res = await apiPost<AuthPayload>('/auth/register', { codename, password })
     loading.value = false
     return handleAuthResult(res, ErrorCode.UNKNOWN)
   }
@@ -75,7 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(codename: string, password: string): Promise<boolean> {
     loading.value = true
     clearError()
-    const res = await apiPost<AuthPayload>('/api/auth/login', { codename, password })
+    const res = await apiPost<AuthPayload>('/auth/login', { codename, password })
     loading.value = false
     return handleAuthResult(res, ErrorCode.AUTH_INVALID)
   }
@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return false
     loading.value = true
     clearError()
-    const res = await apiGet<AuthPayload>('/api/auth/me', token.value)
+    const res = await apiGet<AuthPayload>('/auth/me')
     loading.value = false
     if (res.ok) {
       user.value = res.data.user
@@ -103,7 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
   }): Promise<boolean> {
     loading.value = true
     clearError()
-    const res = await apiPut<AuthPayload>('/api/auth/profile', data, token.value)
+    const res = await apiPut<AuthPayload>('/auth/profile', data)
     loading.value = false
     return handleAuthResult(res, ErrorCode.UNKNOWN)
   }

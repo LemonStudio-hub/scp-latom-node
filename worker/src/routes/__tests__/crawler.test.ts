@@ -75,7 +75,7 @@ function createMockNamespace(): DurableObjectNamespace {
 
 function createTestApp(): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>()
-  app.route('/api/crawler', crawlerRoutes)
+  app.route('/api/v1/crawler', crawlerRoutes)
   return app
 }
 
@@ -99,9 +99,9 @@ describe('Crawler Routes', () => {
     mockStatus = 'idle'
   })
 
-  describe('GET /api/crawler/status', () => {
+  describe('GET /api/v1/crawler/status', () => {
     it('returns status for both languages', async () => {
-      const res = await app.request('/api/crawler/status', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/status', undefined, createMockEnv())
       const body = (await res.json()) as {
         success: boolean
         en: CrawlState
@@ -117,9 +117,9 @@ describe('Crawler Routes', () => {
     })
   })
 
-  describe('GET /api/crawler/:lang/status', () => {
+  describe('GET /api/v1/crawler/:lang/status', () => {
     it('returns status for English', async () => {
-      const res = await app.request('/api/crawler/en/status', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/en/status', undefined, createMockEnv())
       const body = (await res.json()) as {
         success: boolean
         language: string
@@ -134,7 +134,7 @@ describe('Crawler Routes', () => {
     })
 
     it('returns status for Chinese', async () => {
-      const res = await app.request('/api/crawler/cn/status', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/cn/status', undefined, createMockEnv())
       const body = (await res.json()) as {
         success: boolean
         language: string
@@ -147,7 +147,7 @@ describe('Crawler Routes', () => {
     })
 
     it('rejects invalid language', async () => {
-      const res = await app.request('/api/crawler/invalid/status', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/invalid/status', undefined, createMockEnv())
       const body = (await res.json()) as { success: boolean; error: string }
 
       expect(res.status).toBe(400)
@@ -156,9 +156,9 @@ describe('Crawler Routes', () => {
     })
   })
 
-  describe('GET /api/crawler/:lang/entries', () => {
+  describe('GET /api/v1/crawler/:lang/entries', () => {
     it('returns entries for English', async () => {
-      const res = await app.request('/api/crawler/en/entries', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/en/entries', undefined, createMockEnv())
       const body = (await res.json()) as {
         success: boolean
         language: string
@@ -179,7 +179,7 @@ describe('Crawler Routes', () => {
 
     it('forwards query parameters', async () => {
       const res = await app.request(
-        '/api/crawler/en/entries?class=Safe&page=1&limit=10',
+        '/api/v1/crawler/en/entries?class=Safe&page=1&limit=10',
         undefined,
         createMockEnv()
       )
@@ -190,7 +190,7 @@ describe('Crawler Routes', () => {
     })
 
     it('rejects invalid language', async () => {
-      const res = await app.request('/api/crawler/xx/entries', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/xx/entries', undefined, createMockEnv())
       const body = (await res.json()) as { success: boolean }
 
       expect(res.status).toBe(400)
@@ -198,9 +198,9 @@ describe('Crawler Routes', () => {
     })
   })
 
-  describe('GET /api/crawler/:lang/series/:n', () => {
+  describe('GET /api/v1/crawler/:lang/series/:n', () => {
     it('returns entries for series 1', async () => {
-      const res = await app.request('/api/crawler/en/series/1', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/en/series/1', undefined, createMockEnv())
       const body = (await res.json()) as {
         success: boolean
         series: number
@@ -214,7 +214,7 @@ describe('Crawler Routes', () => {
     })
 
     it('rejects invalid series number', async () => {
-      const res = await app.request('/api/crawler/en/series/99', undefined, createMockEnv())
+      const res = await app.request('/api/v1/crawler/en/series/99', undefined, createMockEnv())
       const body = (await res.json()) as { success: boolean; error: string }
 
       expect(res.status).toBe(400)
@@ -223,9 +223,9 @@ describe('Crawler Routes', () => {
     })
   })
 
-  describe('POST /api/crawler/:lang/crawl', () => {
+  describe('POST /api/v1/crawler/:lang/crawl', () => {
     it('triggers crawl for English', async () => {
-      const res = await app.request('/api/crawler/en/crawl', { method: 'POST' }, createMockEnv())
+      const res = await app.request('/api/v1/crawler/en/crawl', { method: 'POST' }, createMockEnv())
       const body = (await res.json()) as {
         success: boolean
         language: string
@@ -240,7 +240,7 @@ describe('Crawler Routes', () => {
 
     it('rejects invalid language', async () => {
       const res = await app.request(
-        '/api/crawler/xx/crawl',
+        '/api/v1/crawler/xx/crawl',
         { method: 'POST' },
         createMockEnv()
       )

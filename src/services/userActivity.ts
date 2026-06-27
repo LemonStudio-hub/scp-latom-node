@@ -53,30 +53,22 @@ export interface HistoryParams {
   lang?: string
 }
 
-// ─── Token Helper ──────────────────────────────────────────
-
-const TOKEN_KEY = 'scp-auth-token'
-
-function getToken(): string | undefined {
-  return localStorage.getItem(TOKEN_KEY) || undefined
-}
-
 // ─── Bookmark API ──────────────────────────────────────────
 
-export function fetchBookmarks(token: string) {
-  return apiGet<BookmarksResponse>('/bookmarks', token)
+export function fetchBookmarks() {
+  return apiGet<BookmarksResponse>('/bookmarks')
 }
 
-export function addBookmark(lang: string, scpNumber: number, token: string) {
-  return apiPost<BookmarkActionResponse>(`/bookmarks/${lang}/${scpNumber}`, undefined, token)
+export function addBookmark(lang: string, scpNumber: number) {
+  return apiPost<BookmarkActionResponse>(`/bookmarks/${lang}/${scpNumber}`)
 }
 
-export function removeBookmark(lang: string, scpNumber: number, token: string) {
-  return apiDelete<BookmarkActionResponse>(`/bookmarks/${lang}/${scpNumber}`, token)
+export function removeBookmark(lang: string, scpNumber: number) {
+  return apiDelete<BookmarkActionResponse>(`/bookmarks/${lang}/${scpNumber}`)
 }
 
-export function checkBookmark(lang: string, scpNumber: number, token: string) {
-  return apiGet<BookmarkCheckResponse>(`/bookmarks/${lang}/${scpNumber}`, token)
+export function checkBookmark(lang: string, scpNumber: number) {
+  return apiGet<BookmarkCheckResponse>(`/bookmarks/${lang}/${scpNumber}`)
 }
 
 // ─── History API ───────────────────────────────────────────
@@ -88,9 +80,9 @@ export function fetchHistory(params?: HistoryParams): Promise<ApiResult<HistoryL
   if (params?.lang) searchParams.set('lang', params.lang)
 
   const query = searchParams.toString()
-  const path = `/api/history${query ? `?${query}` : ''}`
+  const path = `/history${query ? `?${query}` : ''}`
 
-  return apiGet<HistoryListResponse>(path, getToken())
+  return apiGet<HistoryListResponse>(path)
 }
 
 export function recordHistory(data: {
@@ -99,13 +91,13 @@ export function recordHistory(data: {
   name?: string
   objectClass?: string
 }): Promise<ApiResult<{ success: boolean }>> {
-  return apiPost('/api/history', data, getToken())
+  return apiPost('/history', data)
 }
 
 export function deleteHistoryEntry(id: number): Promise<ApiResult<{ success: boolean }>> {
-  return apiDelete(`/api/history/${id}`, getToken())
+  return apiDelete(`/history/${id}`)
 }
 
 export function clearHistory(): Promise<ApiResult<{ success: boolean }>> {
-  return apiDelete('/api/history', getToken())
+  return apiDelete('/history')
 }

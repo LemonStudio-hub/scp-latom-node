@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { useAuthStore } from './auth'
+import { ref } from 'vue'
 import {
   fetchProposals,
   fetchProposal,
@@ -10,8 +9,6 @@ import {
 } from '@/services/proposals'
 
 export const useProposalsStore = defineStore('proposals', () => {
-  const auth = useAuthStore()
-
   const proposals = ref<ProposalPublic[]>([])
   const currentProposal = ref<ProposalPublic | null>(null)
   const loading = ref(false)
@@ -24,7 +21,7 @@ export const useProposalsStore = defineStore('proposals', () => {
   async function loadProposals(p = 1, status?: string, category?: string) {
     loading.value = true
     error.value = ''
-    const res = await fetchProposals(p, 20, status, category, auth.token || undefined)
+    const res = await fetchProposals(p, 20, status, category)
     loading.value = false
 
     if (res.ok) {
@@ -40,7 +37,7 @@ export const useProposalsStore = defineStore('proposals', () => {
   async function loadProposal(id: number) {
     loading.value = true
     error.value = ''
-    const res = await fetchProposal(id, auth.token || undefined)
+    const res = await fetchProposal(id)
     loading.value = false
 
     if (res.ok) {
@@ -51,10 +48,9 @@ export const useProposalsStore = defineStore('proposals', () => {
   }
 
   async function submitProposal(data: { title: string; content: string; category: string }): Promise<boolean> {
-    if (!auth.token) return false
     creating.value = true
     error.value = ''
-    const res = await createProposal(data, auth.token)
+    const res = await createProposal(data)
     creating.value = false
 
     if (res.ok) {
@@ -66,9 +62,8 @@ export const useProposalsStore = defineStore('proposals', () => {
   }
 
   async function vote(proposalId: number, voteType: 'for' | 'against' | 'abstain'): Promise<boolean> {
-    if (!auth.token) return false
     error.value = ''
-    const res = await voteProposal(proposalId, voteType, auth.token)
+    const res = await voteProposal(proposalId, voteType)
 
     if (res.ok) {
       // Update in list

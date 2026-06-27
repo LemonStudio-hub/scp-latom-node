@@ -1,6 +1,5 @@
-import { type ApiResult, normalizeResponse, networkError } from './response'
-
-const API_BASE = 'https://api.scp.lat'
+import { apiGet } from './api'
+import type { ApiResult } from './response'
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -77,34 +76,13 @@ export interface EntryContentResponse {
   error?: string
 }
 
-// ─── API Client ─────────────────────────────────────────────
-
-async function request<T = unknown>(
-  method: string,
-  path: string,
-  body?: unknown
-): Promise<ApiResult<T>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    })
-
-    const json = await res.json()
-    return normalizeResponse<T>(json, res.status)
-  } catch (e) {
-    return networkError(e instanceof Error ? e.message : undefined)
-  }
-}
+// ─── API Functions ──────────────────────────────────────────
 
 /**
  * Get crawl status for both languages.
  */
 export function fetchCrawlerOverallStatus(): Promise<ApiResult<CrawlerOverallStatusResponse>> {
-  return request('GET', '/api/crawler/status')
+  return apiGet<CrawlerOverallStatusResponse>('/crawler/status')
 }
 
 /**
@@ -113,7 +91,7 @@ export function fetchCrawlerOverallStatus(): Promise<ApiResult<CrawlerOverallSta
 export function fetchCrawlerStatus(
   lang: 'en' | 'cn'
 ): Promise<ApiResult<CrawlerStatusResponse>> {
-  return request('GET', `/api/crawler/${lang}/status`)
+  return apiGet<CrawlerStatusResponse>(`/crawler/${lang}/status`)
 }
 
 /**
@@ -130,9 +108,9 @@ export function fetchCrawlerEntries(
   if (params?.limit) searchParams.set('limit', String(params.limit))
 
   const query = searchParams.toString()
-  const path = `/api/crawler/${lang}/entries${query ? `?${query}` : ''}`
+  const path = `/crawler/${lang}/entries${query ? `?${query}` : ''}`
 
-  return request('GET', path)
+  return apiGet<CrawlerEntriesResponse>(path)
 }
 
 /**
@@ -142,7 +120,7 @@ export function fetchCrawlerSeries(
   lang: 'en' | 'cn',
   series: number
 ): Promise<ApiResult<CrawlerSeriesResponse>> {
-  return request('GET', `/api/crawler/${lang}/series/${series}`)
+  return apiGet<CrawlerSeriesResponse>(`/crawler/${lang}/series/${series}`)
 }
 
 /**
@@ -156,5 +134,5 @@ export function fetchEntryContent(
   lang: 'en' | 'cn',
   scpNumber: number
 ): Promise<ApiResult<EntryContentResponse>> {
-  return request('GET', `/api/crawler/${lang}/entry/${scpNumber}`)
+  return apiGet<EntryContentResponse>(`/crawler/${lang}/entry/${scpNumber}`)
 }

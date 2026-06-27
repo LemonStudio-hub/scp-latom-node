@@ -1,6 +1,7 @@
 import { type ApiResult, normalizeResponse, networkError } from './response'
+import { API_URL } from './config'
 
-const API_BASE = 'https://api.scp.lat'
+const TOKEN_KEY = 'scp-auth-token'
 
 async function request<T = unknown>(
   method: string,
@@ -9,10 +10,14 @@ async function request<T = unknown>(
   token?: string
 ): Promise<ApiResult<T>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  // Auto-inject token from localStorage when not explicitly provided.
+  // This removes the need for every caller to manually thread the token.
+  const authToken = token ?? localStorage.getItem(TOKEN_KEY)
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,

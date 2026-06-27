@@ -76,7 +76,7 @@ describe('useAuthStore', () => {
       const result = await store.login('agent', 'password123')
 
       expect(result).toBe(true)
-      expect(mockApiPost).toHaveBeenCalledWith('/api/auth/login', {
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', {
         codename: 'agent',
         password: 'password123',
       })
@@ -178,7 +178,7 @@ describe('useAuthStore', () => {
       const store = useAuthStore()
       await store.register('newagent', 'password123')
 
-      expect(mockApiPost).toHaveBeenCalledWith('/api/auth/register', {
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/register', {
         codename: 'newagent',
         password: 'password123',
       })
@@ -287,9 +287,8 @@ describe('useAuthStore', () => {
       await store.updateProfile({ codename: 'newname' })
 
       expect(mockApiPut).toHaveBeenCalledWith(
-        '/api/auth/profile',
-        { codename: 'newname' },
-        'valid-token'
+        '/auth/profile',
+        { codename: 'newname' }
       )
     })
   })
