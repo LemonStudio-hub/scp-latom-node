@@ -88,7 +88,7 @@ onMounted(() => {
 
     <!-- No Data State -->
     <div v-else-if="!crawler.hasData && !crawler.loading" class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="empty-icon">∅</span>
       <p>No data available yet.</p>
       <p class="empty-hint">The index is being prepared. Please check back later.</p>
     </div>

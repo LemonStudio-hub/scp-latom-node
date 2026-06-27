@@ -60,6 +60,16 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.documents' },
   },
   {
+    path: '/proposals',
+    name: 'proposals',
+    component: DeviceView,
+    props: {
+      desktop: () => import('@/views/ProposalsView.vue'),
+      mobile: () => import('@/views/mobile/MobileProposalsView.vue'),
+    },
+    meta: { titleKey: 'nav.proposals', requiresAuth: true },
+  },
+  {
     path: '/about',
     name: 'about',
     component: DeviceView,

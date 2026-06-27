@@ -43,3 +43,34 @@ CREATE TABLE IF NOT EXISTS crawl_state (
   error        TEXT,
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ─── Proposals ─────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS proposals (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL,
+  title      TEXT NOT NULL,
+  content    TEXT NOT NULL,
+  category   TEXT NOT NULL DEFAULT 'general',
+  status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'approved', 'rejected')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_proposals_user ON proposals(user_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_status ON proposals(status);
+CREATE INDEX IF NOT EXISTS idx_proposals_created ON proposals(created_at);
+
+-- ─── Proposal Votes ────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS proposal_votes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  proposal_id INTEGER NOT NULL,
+  user_id     INTEGER NOT NULL,
+  vote        TEXT NOT NULL CHECK (vote IN ('for', 'against', 'abstain')),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(proposal_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_proposal_votes_proposal ON proposal_votes(proposal_id);
+CREATE INDEX IF NOT EXISTS idx_proposal_votes_user ON proposal_votes(user_id);

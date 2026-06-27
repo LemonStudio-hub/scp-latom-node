@@ -75,3 +75,39 @@ export interface EntryContentResponse {
   message?: string
   error?: string
 }
+
+// ─── Proposal Types ────────────────────────────────────────
+
+export interface Proposal {
+  id: number
+  user_id: number
+  title: string
+  content: string
+  category: string
+  status: 'open' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+}
+
+export interface ProposalVote {
+  id: number
+  proposal_id: number
+  user_id: number
+  vote: 'for' | 'against' | 'abstain'
+  created_at: string
+}
+
+export interface ProposalPublic {
+  id: number
+  title: string
+  content: string
+  category: string
+  status: string
+  authorCodename: string
+  votesFor: number
+  votesAgainst: number
+  votesAbstain: number
+  userVote: 'for' | 'against' | 'abstain' | null
+  createdAt: string
+  updatedAt: string
+}

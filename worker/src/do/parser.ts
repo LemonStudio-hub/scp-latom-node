@@ -300,6 +300,8 @@ const TAG_CLASS_MAP: Record<string, string> = {
 /** Base fetch options shared across class map requests */
 const CLASS_MAP_FETCH_TIMEOUT_MS = 15_000
 const CLASS_MAP_CRAWL_DELAY_MS = 1200
+/** Max tag pages to fetch per class (caps total class map time) */
+const CLASS_MAP_MAX_PAGES_PER_CLASS = 3
 
 /** Regex to detect Wikidot pager links for pagination */
 const PAGER_PATTERN = /class="pager"[^>]*>[\s\S]*?<a[^>]*href="[^"]*\?p=(\d+)"/gi
@@ -380,8 +382,8 @@ export async function buildClassMap(
         }
       }
 
-      // Check for additional pages
-      const totalPages = detectPageCount(firstPage.html)
+      // Check for additional pages (capped to avoid excessive fetching)
+      const totalPages = Math.min(detectPageCount(firstPage.html), CLASS_MAP_MAX_PAGES_PER_CLASS)
       for (let p = 2; p <= totalPages; p++) {
         await new Promise((r) => setTimeout(r, humanDelay(CLASS_MAP_CRAWL_DELAY_MS)))
 
