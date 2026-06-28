@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useProposalsStore } from '@/stores/proposals'
 import { useAuthStore } from '@/stores/auth'
 import Badge from '@/components/common/Badge.vue'
+import { ArrowLeft, Diamond, Minus, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -39,7 +40,7 @@ onMounted(() => {
   <div class="m-proposal-detail">
     <!-- Back button -->
     <button class="m-back-btn" @click="goBack">
-      ← {{ t('proposals.back') }}
+      <ArrowLeft :size="16" /> {{ t('proposals.back') }}
     </button>
 
     <!-- Loading -->
@@ -51,7 +52,7 @@ onMounted(() => {
 
     <!-- Error -->
     <div v-else-if="store.error" class="m-error">
-      <span class="m-error-icon">⚠</span>
+      <TriangleAlert class="m-error-icon" :size="40" />
       <p>{{ store.error }}</p>
       <button class="m-retry-btn" @click="store.loadProposal(proposalId)">
         {{ t('errors.retry') }}
@@ -60,7 +61,7 @@ onMounted(() => {
 
     <!-- Not found -->
     <div v-else-if="!proposal" class="m-empty">
-      <span class="m-empty-icon">◇</span>
+      <Diamond class="m-empty-icon" :size="40" />
       <p>{{ t('proposals.empty') }}</p>
     </div>
 
@@ -90,9 +91,9 @@ onMounted(() => {
       <!-- Voting section -->
       <div class="m-detail-voting">
         <div class="m-vote-counts">
-          <span class="m-vc for">▲ {{ proposal.votesFor }}</span>
-          <span class="m-vc against">▼ {{ proposal.votesAgainst }}</span>
-          <span class="m-vc abstain">— {{ proposal.votesAbstain }}</span>
+          <span class="m-vc for"><ThumbsUp :size="14" /> {{ proposal.votesFor }}</span>
+          <span class="m-vc against"><ThumbsDown :size="14" /> {{ proposal.votesAgainst }}</span>
+          <span class="m-vc abstain"><Minus :size="14" /> {{ proposal.votesAbstain }}</span>
         </div>
 
         <div v-if="proposal.userVote" class="m-voted-msg">
@@ -101,13 +102,13 @@ onMounted(() => {
 
         <div v-else-if="auth.isAuthenticated && proposal.status === 'open'" class="m-vote-actions">
           <button class="m-vote-btn for" @click="castVote('for')">
-            ▲ {{ t('proposals.vote.for') }}
+            <ThumbsUp :size="14" /> {{ t('proposals.vote.for') }}
           </button>
           <button class="m-vote-btn against" @click="castVote('against')">
-            ▼ {{ t('proposals.vote.against') }}
+            <ThumbsDown :size="14" /> {{ t('proposals.vote.against') }}
           </button>
           <button class="m-vote-btn abstain" @click="castVote('abstain')">
-            — {{ t('proposals.vote.abstain') }}
+            <Minus :size="14" /> {{ t('proposals.vote.abstain') }}
           </button>
         </div>
       </div>
@@ -121,7 +122,9 @@ onMounted(() => {
 }
 
 .m-back-btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
   margin-bottom: var(--space-lg);
   background: transparent;
@@ -211,6 +214,12 @@ onMounted(() => {
 .m-vc.against { color: var(--color-danger); }
 .m-vc.abstain { color: var(--text-tertiary); }
 
+.m-vc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .m-voted-msg {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
@@ -223,6 +232,10 @@ onMounted(() => {
 }
 
 .m-vote-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   flex: 1;
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
@@ -231,7 +244,6 @@ onMounted(() => {
   cursor: pointer;
   font-size: var(--text-xs);
   font-family: var(--font-mono);
-  text-align: center;
   transition: all var(--transition-fast);
 }
 
@@ -271,8 +283,7 @@ onMounted(() => {
 }
 
 .m-error-icon, .m-empty-icon {
-  font-size: 2.5rem;
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

@@ -5,6 +5,7 @@ import { useCrawlerStore } from '@/stores/crawler'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
 import type { ObjectClass } from '@/types'
+import { ArrowRight, ChevronRight, Inbox, TriangleAlert } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const crawler = useCrawlerStore()
@@ -39,10 +40,7 @@ onMounted(() => {
       <p class="m-hero-desc">{{ t('hero.description') }}</p>
       <router-link to="/catalog" class="m-hero-btn">
         {{ t('hero.browseCatalog') }}
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="5" y1="12" x2="19" y2="12" />
-          <polyline points="12 5 19 12 12 19" />
-        </svg>
+        <ArrowRight :size="16" />
       </router-link>
     </section>
 
@@ -62,9 +60,7 @@ onMounted(() => {
         <h2 class="m-section-title">{{ t('recent.title') }}</h2>
         <router-link to="/catalog" class="m-section-link">
           {{ t('recent.viewAll') }}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <ChevronRight :size="14" />
         </router-link>
       </div>
 
@@ -75,14 +71,14 @@ onMounted(() => {
 
       <!-- Error -->
       <div v-else-if="crawler.error && !crawler.hasData" class="m-error">
-        <span class="m-error-icon">⚠</span>
+        <TriangleAlert class="m-error-icon" :size="40" />
         <p>{{ crawler.error }}</p>
         <button class="m-retry-btn" @click="crawler.init()">Retry</button>
       </div>
 
       <!-- Empty -->
       <div v-else-if="!recent.length" class="m-empty">
-        <span class="m-empty-icon">∅</span>
+        <Inbox class="m-empty-icon" :size="40" />
         <p>{{ t('catalog.empty') }}</p>
       </div>
 
@@ -346,8 +342,7 @@ onMounted(() => {
 }
 
 .m-error-icon, .m-empty-icon {
-  font-size: 2.5rem;
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

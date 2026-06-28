@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { documents } from '@/data/documents'
 import Badge from '@/components/common/Badge.vue'
 import { useI18n } from 'vue-i18n'
+import { X } from 'lucide-vue-next'
 import type { Document } from '@/types'
 
 const { t } = useI18n()
@@ -103,10 +104,7 @@ function renderMarkdown(md: string): string {
                 <span class="doc-modal-type">{{ t(`documents.types.${activeDoc.type}`) }}</span>
               </div>
               <button class="close-btn" @click="closeDoc">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X :size="20" />
               </button>
             </div>
             <h2 class="doc-modal-title">{{ t(`docs.${activeDoc.id}.title`) }}</h2>

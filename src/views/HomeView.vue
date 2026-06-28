@@ -4,6 +4,7 @@ import { useCrawlerStore } from '@/stores/crawler'
 import HeroSection from '@/components/home/HeroSection.vue'
 import StatsGrid from '@/components/home/StatsGrid.vue'
 import RecentEntries from '@/components/home/RecentEntries.vue'
+import { TriangleAlert } from 'lucide-vue-next'
 
 const crawler = useCrawlerStore()
 
@@ -30,7 +31,7 @@ onMounted(() => {
 
     <!-- Error -->
     <div v-else-if="crawler.error && !crawler.hasData" class="home-error">
-      <span class="error-icon">⚠</span>
+      <TriangleAlert class="error-icon" :size="48" />
       <p>{{ crawler.error }}</p>
       <button class="retry-btn" @click="crawler.init()">Retry</button>
     </div>
@@ -93,9 +94,8 @@ onMounted(() => {
 }
 
 .error-icon {
-  font-size: 3rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ErrorCode } from '@/services/errors'
 import { logger } from '@/services/logger'
+import { TriangleAlert } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
   fallbackCode?: ErrorCode
@@ -45,7 +46,9 @@ function handleRetry() {
 <template>
   <div v-if="hasError" class="error-boundary">
     <div class="glitch-container">
-      <div class="error-code" :data-text="t(`errors.${errorCode}`).slice(0, 3)">⚠</div>
+      <div class="error-code" :data-text="t(`errors.${errorCode}`).slice(0, 3)">
+        <TriangleAlert :size="96" />
+      </div>
       <div class="scanline"></div>
     </div>
     <div class="error-content">
@@ -108,28 +111,9 @@ function handleRetry() {
   line-height: 1;
   text-shadow: 0 0 20px var(--color-danger-muted);
   animation: glitch 4s infinite;
-}
-
-.error-code::before,
-.error-code::after {
-  content: '⚠';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.error-code::before {
-  color: var(--color-accent);
-  animation: glitch-1 3s infinite;
-  clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
-}
-
-.error-code::after {
-  color: var(--color-primary);
-  animation: glitch-2 3s infinite;
-  clip-path: polygon(0 67%, 100% 67%, 100% 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @keyframes glitch {
@@ -138,22 +122,6 @@ function handleRetry() {
   87% { transform: skewX(-3deg) translateX(-2px); opacity: 0.9; }
   88% { transform: skewX(2deg) translateX(1px); opacity: 0.95; }
   89% { transform: none; opacity: 1; }
-}
-
-@keyframes glitch-1 {
-  0%, 85%, 100% { transform: translate(0); }
-  86% { transform: translate(-4px, -2px); }
-  87% { transform: translate(3px, 1px); }
-  88% { transform: translate(-1px, -1px); }
-  89% { transform: translate(0); }
-}
-
-@keyframes glitch-2 {
-  0%, 85%, 100% { transform: translate(0); }
-  86% { transform: translate(3px, 2px); }
-  87% { transform: translate(-2px, -1px); }
-  88% { transform: translate(1px, 1px); }
-  89% { transform: translate(0); }
 }
 
 .scanline {

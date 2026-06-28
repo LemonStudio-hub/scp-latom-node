@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import { ref } from 'vue'
+import { ChevronLeft, ChevronRight, Diamond, FileText, LayoutDashboard, ScrollText, Settings, Shield, Users } from 'lucide-vue-next'
 
 const route = useRoute()
 const collapsed = ref(false)
 
 const navItems = [
-  { path: '/', name: 'dashboard', label: 'Dashboard', icon: '◈' },
-  { path: '/users', name: 'users', label: 'Users', icon: '◉' },
-  { path: '/entries', name: 'entries', label: 'Content', icon: '☰' },
-  { path: '/proposals', name: 'proposals', label: 'Proposals', icon: '◇' },
-  { path: '/logs', name: 'logs', label: 'Logs', icon: '▣' },
-  { path: '/settings', name: 'settings', label: 'Settings', icon: '⚙' },
+  { path: '/', name: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/users', name: 'users', label: 'Users', icon: Users },
+  { path: '/entries', name: 'entries', label: 'Content', icon: FileText },
+  { path: '/proposals', name: 'proposals', label: 'Proposals', icon: Diamond },
+  { path: '/logs', name: 'logs', label: 'Logs', icon: ScrollText },
+  { path: '/settings', name: 'settings', label: 'Settings', icon: Settings },
 ]
 
 function toggle() {
@@ -22,7 +23,7 @@ function toggle() {
 <template>
   <aside class="admin-sidebar" :class="{ collapsed }">
     <div class="sidebar-brand">
-      <div class="brand-icon">◈</div>
+      <div class="brand-icon"><Shield :size="28" :stroke-width="1.75" /></div>
       <div class="brand-text" v-if="!collapsed">
         <div class="brand-title">SCP FOUNDATION</div>
         <div class="brand-subtitle">ADMIN TERMINAL</div>
@@ -38,7 +39,7 @@ function toggle() {
         :class="{ active: route.name === item.name || (item.name !== 'dashboard' && route.path.startsWith(item.path)) }"
         :title="collapsed ? item.label : undefined"
       >
-        <span class="nav-icon">{{ item.icon }}</span>
+        <span class="nav-icon"><component :is="item.icon" :size="18" /></span>
         <span class="nav-label" v-if="!collapsed">{{ item.label }}</span>
       </router-link>
     </nav>
@@ -63,9 +64,8 @@ function toggle() {
     </div>
 
     <button class="collapse-btn" @click="toggle" :title="collapsed ? 'Expand' : 'Collapse'">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline :points="collapsed ? '6 3 11 8 6 13' : '10 3 5 8 10 13'" />
-      </svg>
+      <ChevronRight v-if="collapsed" :size="16" :stroke-width="1.5" />
+      <ChevronLeft v-else :size="16" :stroke-width="1.5" />
     </button>
   </aside>
 </template>
@@ -101,11 +101,14 @@ function toggle() {
 }
 
 .brand-icon {
-  font-size: var(--text-2xl);
   color: var(--color-primary);
   width: 32px;
+  height: 32px;
   text-align: center;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .brand-text {
@@ -173,10 +176,12 @@ function toggle() {
 }
 
 .nav-icon {
-  font-size: var(--text-lg);
   width: 24px;
   text-align: center;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-label {

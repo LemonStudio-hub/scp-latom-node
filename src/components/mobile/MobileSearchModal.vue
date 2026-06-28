@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSearchStore } from '@/stores/search'
 import { useI18n } from 'vue-i18n'
+import { ChevronLeft, SearchX, X } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const search = useSearchStore()
@@ -75,9 +76,7 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
       <div v-if="search.isOpen" class="search-overlay">
         <div class="search-bar">
           <button class="back-btn" @click="search.close">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            <ChevronLeft :size="20" />
           </button>
           <input
             ref="inputRef"
@@ -90,10 +89,7 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
             @keydown="handleKeydown"
           />
           <button v-if="search.query" class="clear-btn" @click="search.query = ''">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="16" />
           </button>
         </div>
 
@@ -117,7 +113,7 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
         </div>
 
         <div class="search-empty" v-else-if="search.query">
-          <span class="empty-icon">∅</span>
+          <SearchX class="empty-icon" :size="40" />
           <span class="empty-text">{{ t('search.empty', { query: search.query }) }}</span>
         </div>
       </div>
@@ -274,7 +270,6 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
 }
 
 .empty-icon {
-  font-size: var(--text-3xl);
   color: var(--text-tertiary);
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ArrowLeft, ArrowRight } from 'lucide-vue-next'
 
 const props = defineProps<{
   page: number
@@ -26,7 +27,7 @@ const visiblePages = computed(() => {
       :disabled="page <= 1"
       @click="emit('pageChange', page - 1)"
     >
-      ←
+      <ArrowLeft :size="16" />
     </button>
     <button
       v-for="p in visiblePages"
@@ -42,7 +43,7 @@ const visiblePages = computed(() => {
       :disabled="page >= totalPages"
       @click="emit('pageChange', page + 1)"
     >
-      →
+      <ArrowRight :size="16" />
     </button>
   </div>
 </template>

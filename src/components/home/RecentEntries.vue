@@ -5,6 +5,7 @@ import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
 import type { CrawlEntry } from '@/services/crawler'
 import type { ObjectClass } from '@/types'
+import { ChevronRight, Diamond } from 'lucide-vue-next'
 
 const { t } = useI18n()
 
@@ -22,9 +23,7 @@ const recent = computed(() => props.entries.slice(0, 4))
       <h2 class="section-title">{{ t('recent.title') }}</h2>
       <router-link to="/catalog" class="section-link">
         {{ t('recent.viewAll') }}
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        <ChevronRight :size="14" />
       </router-link>
     </div>
 
@@ -48,7 +47,7 @@ const recent = computed(() => props.entries.slice(0, 4))
     </div>
 
     <div v-else class="empty-state">
-      <span class="empty-icon">◇</span>
+      <Diamond class="empty-icon" :size="48" />
       <p class="empty-text">{{ t('catalog.empty') }}</p>
     </div>
   </section>
@@ -183,9 +182,8 @@ const recent = computed(() => props.entries.slice(0, 4))
 }
 
 .empty-icon {
-  font-size: 3rem;
   color: var(--text-tertiary);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
   animation: float 3s ease-in-out infinite;
 }

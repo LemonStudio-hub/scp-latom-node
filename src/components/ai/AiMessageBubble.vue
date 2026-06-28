@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { AiMessage } from '@/services/ai'
+import { UserRound } from 'lucide-vue-next'
 
 const props = defineProps<{
   message: AiMessage
@@ -56,11 +57,7 @@ function formatTime(iso: string): string {
 <template>
   <div class="message" :class="{ 'message-user': isUser, 'message-assistant': isAssistant }">
     <div v-if="isAssistant" class="avatar">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="2" />
-      </svg>
+      <UserRound :size="18" />
     </div>
     <div class="bubble" :class="{ 'bubble-user': isUser, 'bubble-assistant': isAssistant }">
       <div v-if="isAssistant" class="content markdown" v-html="formattedContent" />

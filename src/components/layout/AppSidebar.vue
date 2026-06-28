@@ -2,18 +2,19 @@
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSidebar } from '@/composables/useSidebar'
+import { ChevronLeft, ChevronRight, House, Grid2x2, FileText, Diamond, LayoutGrid, Info } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const route = useRoute()
 const { collapsed, toggle } = useSidebar()
 
 const navItems = [
-  { path: '/', labelKey: 'nav.dashboard', icon: '◈' },
-  { path: '/catalog', labelKey: 'nav.catalog', icon: '☰' },
-  { path: '/documents', labelKey: 'nav.documents', icon: '◫' },
-  { path: '/proposals', labelKey: 'nav.proposals', icon: '◇' },
-  { path: '/activity', labelKey: 'nav.activity', icon: '◧' },
-  { path: '/about', labelKey: 'nav.about', icon: '◎' },
+  { path: '/', labelKey: 'nav.dashboard', icon: House },
+  { path: '/catalog', labelKey: 'nav.catalog', icon: Grid2x2 },
+  { path: '/documents', labelKey: 'nav.documents', icon: FileText },
+  { path: '/proposals', labelKey: 'nav.proposals', icon: Diamond },
+  { path: '/activity', labelKey: 'nav.activity', icon: LayoutGrid },
+  { path: '/about', labelKey: 'nav.about', icon: Info },
 ]
 </script>
 
@@ -29,7 +30,7 @@ const navItems = [
         :title="collapsed ? t(item.labelKey) : undefined"
         :style="{ animationDelay: `${index * 50 + 200}ms` }"
       >
-        <span class="nav-icon">{{ item.icon }}</span>
+        <span class="nav-icon"><component :is="item.icon" :size="18" /></span>
         <span class="nav-label">{{ t(item.labelKey) }}</span>
       </router-link>
     </nav>
@@ -58,18 +59,8 @@ const navItems = [
       @click="toggle"
       :title="collapsed ? t('sidebar.expand') : t('sidebar.collapse')"
     >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline :points="collapsed ? '6 3 11 8 6 13' : '10 3 5 8 10 13'" />
-      </svg>
+      <ChevronRight v-if="collapsed" :size="16" :stroke-width="1.5" />
+      <ChevronLeft v-else :size="16" :stroke-width="1.5" />
     </button>
   </aside>
 
@@ -82,7 +73,7 @@ const navItems = [
       class="mobile-nav-item"
       :class="{ active: route.path === item.path || (item.path !== '/' && route.path.startsWith(item.path)) }"
     >
-      <span class="mobile-nav-icon">{{ item.icon }}</span>
+      <span class="mobile-nav-icon"><component :is="item.icon" :size="20" /></span>
       <span class="mobile-nav-label">{{ t(item.labelKey) }}</span>
     </router-link>
   </nav>
@@ -180,7 +171,6 @@ const navItems = [
 }
 
 .nav-icon {
-  font-size: var(--text-lg);
   width: 24px;
   text-align: center;
   flex-shrink: 0;
@@ -332,7 +322,6 @@ const navItems = [
 }
 
 .mobile-nav-icon {
-  font-size: var(--text-lg);
   transition: transform var(--transition-fast);
 }
 

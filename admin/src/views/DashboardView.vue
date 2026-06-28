@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import StatsCard from '@/components/common/StatsCard.vue'
+import { Diamond, FileText, TriangleAlert, Users } from 'lucide-vue-next'
 
 const dashboard = useDashboardStore()
 
@@ -20,7 +21,7 @@ onMounted(() => dashboard.fetchStats())
     </div>
 
     <div v-else-if="dashboard.error" class="error-state">
-      <span class="error-icon">⚠</span>
+      <TriangleAlert class="error-icon" :size="48" />
       <p>{{ dashboard.error }}</p>
       <button class="btn btn-ghost" @click="dashboard.fetchStats()">Retry</button>
     </div>
@@ -31,22 +32,22 @@ onMounted(() => dashboard.fetchStats())
         <StatsCard
           label="Total Personnel"
           :value="dashboard.stats.totalUsers"
-          icon="◉"
+          :icon="Users"
         />
         <StatsCard
           label="Total Entries"
           :value="(dashboard.stats.entriesByLanguage || []).reduce((s, e) => s + e.count, 0)"
-          icon="☰"
+          :icon="FileText"
         />
         <StatsCard
           label="Open Proposals"
           :value="(dashboard.stats.proposalsByStatus || []).find(p => p.status === 'open')?.count || 0"
-          icon="◇"
+          :icon="Diamond"
         />
         <StatsCard
           label="Errors (24h)"
           :value="dashboard.stats.recentActivity?.errorsLast24h || 0"
-          icon="⚠"
+          :icon="TriangleAlert"
         />
       </div>
 
@@ -170,9 +171,8 @@ onMounted(() => dashboard.fetchStats())
 }
 
 .error-icon {
-  font-size: 3rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 </style>

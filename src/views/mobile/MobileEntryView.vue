@@ -10,6 +10,7 @@ import { useUserActivityStore } from '@/stores/userActivity'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
 import ReportDialog from '@/components/common/ReportDialog.vue'
+import { ChevronLeft, Download, Bookmark, TriangleAlert } from 'lucide-vue-next'
 import type { ObjectClass } from '@/types'
 
 const { t } = useI18n()
@@ -167,9 +168,7 @@ onUnmounted(() => {
   <div class="m-entry">
     <!-- Back -->
     <router-link to="/catalog" class="m-back">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="15 18 9 12 15 6" />
-      </svg>
+      <ChevronLeft :size="16" />
       {{ t('entry.back') }}
     </router-link>
 
@@ -186,7 +185,7 @@ onUnmounted(() => {
 
     <!-- Error -->
     <div v-else-if="error" class="m-error">
-      <span class="m-error-icon">⚠</span>
+      <TriangleAlert class="m-error-icon" :size="40" />
       <h2>{{ scpId }}</h2>
       <p>{{ error }}</p>
       <div class="m-error-actions">
@@ -212,11 +211,7 @@ onUnmounted(() => {
               :title="t('entry.download')"
               @click="handleDownload"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <Download :size="16" />
             </button>
             <button
               v-if="auth.isAuthenticated"
@@ -226,9 +221,7 @@ onUnmounted(() => {
               :title="bookmarked ? t('bookmarks.remove') : t('bookmarks.add')"
               @click="toggleBookmark"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
+              <Bookmark :size="16" :fill="bookmarked ? 'currentColor' : 'none'" />
             </button>
             <button
               v-if="auth.isAuthenticated"
@@ -236,11 +229,7 @@ onUnmounted(() => {
               :title="t('entry.report')"
               @click="reportOpen = true"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+              <TriangleAlert :size="16" />
             </button>
           </div>
         </div>
@@ -440,9 +429,8 @@ onUnmounted(() => {
 }
 
 .m-error-icon {
-  font-size: 2.5rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

@@ -5,6 +5,7 @@ import { useCrawlerStore } from '@/stores/crawler'
 import { useEntryProtocol, INTERVAL_OPTIONS } from '@/composables/useEntryProtocol'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
+import { ArrowLeft, ArrowRight, Shield, RotateCw, Settings, Pause, Play, RefreshCw, Search, SearchX, TriangleAlert } from 'lucide-vue-next'
 import type { ObjectClass } from '@/types'
 import type { ProtocolMode } from '@/composables/useEntryProtocol'
 
@@ -108,9 +109,7 @@ onMounted(async () => {
       <div class="protocol-top">
         <div class="protocol-title-row">
           <span class="protocol-icon-wrap">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <Shield :size="14" />
           </span>
           <span class="protocol-label">{{ t('catalog.protocol.title') }}</span>
           <span class="protocol-divider" />
@@ -129,10 +128,7 @@ onMounted(async () => {
               :class="{ active: protocol.mode.value === 'auto' }"
               @click="switchProtocol('auto')"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12a9 9 0 11-6.219-8.56" />
-                <polyline points="21 3 21 12 12 12" />
-              </svg>
+              <RotateCw :size="14" />
               {{ t('catalog.protocol.auto') }}
             </button>
             <button
@@ -140,10 +136,7 @@ onMounted(async () => {
               :class="{ active: protocol.mode.value === 'manual' }"
               @click="switchProtocol('manual')"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-              </svg>
+              <Settings :size="14" />
               {{ t('catalog.protocol.manual') }}
             </button>
           </div>
@@ -213,21 +206,12 @@ onMounted(async () => {
           <!-- Action buttons -->
           <div class="auto-actions">
             <button class="action-btn pause-btn" @click="protocol.togglePause()">
-              <svg v-if="!protocol.isPaused.value" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16" />
-                <rect x="14" y="4" width="4" height="16" />
-              </svg>
-              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5,3 19,12 5,21" />
-              </svg>
+              <Pause v-if="!protocol.isPaused.value" :size="14" fill="currentColor" />
+              <Play v-else :size="14" fill="currentColor" />
               {{ protocol.isPaused.value ? t('catalog.protocol.resume') : t('catalog.protocol.pause') }}
             </button>
             <button class="action-btn shuffle-btn" @click="protocol.shuffle()" :disabled="protocol.transitioning.value">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spinning: protocol.transitioning.value }">
-                <polyline points="1 4 1 10 7 10" />
-                <polyline points="23 20 23 14 17 14" />
-                <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" />
-              </svg>
+              <RefreshCw :size="14" :class="{ spinning: protocol.transitioning.value }" />
               {{ t('catalog.protocol.shuffle') }}
             </button>
           </div>
@@ -242,14 +226,14 @@ onMounted(async () => {
 
     <!-- Error State -->
     <div v-else-if="crawler.error && !crawler.hasData" class="error-state">
-      <span class="error-icon">⚠</span>
+      <TriangleAlert class="error-icon" :size="48" />
       <p>{{ crawler.error }}</p>
       <button class="retry-btn" @click="crawler.fetchEntries()">Retry</button>
     </div>
 
     <!-- No Data State -->
     <div v-else-if="!crawler.hasData && !crawler.loading" class="empty-state">
-      <span class="empty-icon">∅</span>
+      <SearchX class="empty-icon" :size="48" />
       <p>No data available yet.</p>
       <p class="empty-hint">The index is being prepared. Please check back later.</p>
     </div>
@@ -302,10 +286,7 @@ onMounted(async () => {
             <h3 class="entry-name">{{ entry.name || `SCP-${entry.scpNumber}` }}</h3>
             <div class="entry-card-footer">
               <span class="entry-series">Series {{ entry.series }}</span>
-              <svg class="entry-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
+              <ArrowRight class="entry-arrow" :size="14" />
             </div>
           </router-link>
         </div>
@@ -320,10 +301,7 @@ onMounted(async () => {
       <template v-else>
         <div class="filters">
           <div class="search-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
+            <Search :size="16" />
             <input
               v-model="searchQuery"
               type="text"
@@ -383,7 +361,7 @@ onMounted(async () => {
             :disabled="crawler.page <= 1"
             @click="crawler.setPage(crawler.page - 1)"
           >
-            ← Prev
+            <ArrowLeft :size="16" /> Prev
           </button>
           <span class="page-info">
             Page {{ crawler.page }} of {{ crawler.totalPages }}
@@ -393,12 +371,12 @@ onMounted(async () => {
             :disabled="crawler.page >= crawler.totalPages"
             @click="crawler.setPage(crawler.page + 1)"
           >
-            Next →
+            Next <ArrowRight :size="16" />
           </button>
         </div>
 
         <div v-if="crawler.entries.length === 0 && !crawler.loading" class="empty-state">
-          <span class="empty-icon">∅</span>
+          <SearchX class="empty-icon" :size="48" />
           <p>{{ t('catalog.empty') }}</p>
         </div>
       </template>
@@ -1241,6 +1219,9 @@ onMounted(async () => {
 }
 
 .page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
   background: var(--bg-surface);
@@ -1304,9 +1285,8 @@ onMounted(async () => {
 }
 
 .error-icon {
-  font-size: 3rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 
@@ -1333,9 +1313,8 @@ onMounted(async () => {
 }
 
 .empty-icon {
-  font-size: 3rem;
   color: var(--text-tertiary);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

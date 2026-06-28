@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
+
 defineProps<{
   label: string
   value: string | number
-  icon?: string
+  icon?: string | Component
   trend?: string
   trendUp?: boolean
 }>()
@@ -12,7 +14,8 @@ defineProps<{
   <div class="admin-card stats-card">
     <div class="admin-card-header">
       <span class="admin-card-title">{{ label }}</span>
-      <span v-if="icon" class="stats-icon">{{ icon }}</span>
+      <component v-if="icon && typeof icon !== 'string'" :is="icon" class="stats-icon" :size="22" />
+      <span v-else-if="icon" class="stats-icon">{{ icon }}</span>
     </div>
     <div class="admin-card-value">{{ value }}</div>
     <div v-if="trend" class="stats-trend" :class="{ up: trendUp, down: !trendUp }">
@@ -28,7 +31,6 @@ defineProps<{
 }
 
 .stats-icon {
-  font-size: var(--text-xl);
   opacity: 0.3;
 }
 

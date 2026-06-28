@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
+import { Building2, CircleDot, Network, RadioTower, ServerCog, Shield, SlidersHorizontal } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const visible = ref(false)
@@ -28,6 +29,16 @@ const classGlow: Record<string, string> = {
   apollyon: 'var(--class-apollyon-glow, rgba(239, 68, 68, 0.2))',
   neutralized: 'var(--class-neutralized-glow, rgba(107, 114, 128, 0.15))',
 }
+
+const aboutSectionIcons = {
+  foundation: Shield,
+  latomNode: RadioTower,
+  classification: CircleDot,
+  spectrum: SlidersHorizontal,
+  security: Building2,
+  structure: Network,
+  system: ServerCog,
+}
 </script>
 
 <template>
@@ -52,7 +63,7 @@ const classGlow: Record<string, string> = {
       <!-- Foundation Section -->
       <section class="about-section fade-up-1">
         <div class="section-header">
-          <div class="section-icon">◈</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.foundation" :size="22" /></div>
           <h2>{{ t('about.foundation.title') }}</h2>
         </div>
         <div class="section-content">
@@ -65,7 +76,7 @@ const classGlow: Record<string, string> = {
       <!-- Latom Node Section -->
       <section class="about-section fade-up-2">
         <div class="section-header">
-          <div class="section-icon">◫</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.latomNode" :size="22" /></div>
           <h2>{{ t('about.latomNode.title') }}</h2>
         </div>
         <div class="section-content">
@@ -78,7 +89,7 @@ const classGlow: Record<string, string> = {
       <!-- Classification Section -->
       <section class="about-section fade-up-3">
         <div class="section-header">
-          <div class="section-icon">◎</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.classification" :size="22" /></div>
           <h2>{{ t('about.classification.title') }}</h2>
         </div>
         <p class="section-intro">{{ t('about.classification.desc') }}</p>
@@ -106,7 +117,7 @@ const classGlow: Record<string, string> = {
       <!-- Containment Spectrum -->
       <section class="about-section fade-up-4">
         <div class="section-header">
-          <div class="section-icon">◇</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.spectrum" :size="22" /></div>
           <h2>{{ t('about.spectrum.title') }}</h2>
         </div>
         <p class="section-intro">{{ t('about.spectrum.desc') }}</p>
@@ -133,7 +144,7 @@ const classGlow: Record<string, string> = {
       <!-- Security Protocols -->
       <section class="about-section fade-up-5">
         <div class="section-header">
-          <div class="section-icon">◧</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.security" :size="22" /></div>
           <h2>{{ t('about.security.title') }}</h2>
         </div>
         <p class="section-intro">{{ t('about.security.desc') }}</p>
@@ -156,7 +167,7 @@ const classGlow: Record<string, string> = {
       <!-- Foundation Structure -->
       <section class="about-section fade-up-6">
         <div class="section-header">
-          <div class="section-icon">▣</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.structure" :size="22" /></div>
           <h2>{{ t('about.structure.title') }}</h2>
         </div>
         <p class="section-intro">{{ t('about.structure.desc') }}</p>
@@ -187,7 +198,7 @@ const classGlow: Record<string, string> = {
       <!-- System Information -->
       <section class="about-section fade-up-7">
         <div class="section-header">
-          <div class="section-icon">⚙</div>
+          <div class="section-icon"><component :is="aboutSectionIcons.system" :size="22" /></div>
           <h2>{{ t('about.system.title') }}</h2>
         </div>
         <div class="terminal-block">
@@ -391,7 +402,6 @@ const classGlow: Record<string, string> = {
 }
 
 .section-icon {
-  font-size: var(--text-2xl);
   color: var(--color-primary);
   flex-shrink: 0;
   width: 40px;

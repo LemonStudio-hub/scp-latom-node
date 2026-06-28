@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Search, Sun, Moon } from 'lucide-vue-next'
 
 const { theme, toggle: toggleTheme } = useTheme()
 const { toggleLocale } = useLocale()
@@ -47,10 +48,7 @@ const breadcrumbs = computed(() => {
 
     <div class="header-right">
       <button class="search-btn" @click="search.open" :title="t('header.searchTitle')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
+        <Search :size="18" />
         <span class="search-label">{{ t('header.searchPlaceholder') }}</span>
         <kbd>⌘K</kbd>
       </button>
@@ -61,16 +59,8 @@ const breadcrumbs = computed(() => {
 
       <button class="icon-btn" @click="toggleTheme" :title="theme === 'dark' ? t('header.lightMode') : t('header.darkMode')">
         <Transition name="fade" mode="out-in">
-          <svg v-if="theme === 'dark'" key="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-          <svg v-else key="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
+          <Sun v-if="theme === 'dark'" key="sun" :size="18" />
+          <Moon v-else key="moon" :size="18" />
         </Transition>
       </button>
 
@@ -140,6 +130,9 @@ const breadcrumbs = computed(() => {
   height: 32px;
   color: var(--color-primary);
   transition: transform 500ms var(--ease-out-back);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logo-text {

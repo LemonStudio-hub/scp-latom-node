@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSearchStore } from '@/stores/search'
 import { useI18n } from 'vue-i18n'
+import { Search, SearchX, ChevronRight } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const search = useSearchStore()
@@ -78,10 +79,7 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
         <Transition name="modal">
           <div v-if="search.isOpen" class="modal" @keydown="handleKeydown">
             <div class="search-input-wrap">
-              <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+              <Search class="search-icon" :size="20" />
               <input
                 ref="inputRef"
                 v-model="search.query"
@@ -115,16 +113,14 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
                     <span class="result-title">{{ item.title }}</span>
                     <span class="result-subtitle">{{ item.subtitle }}</span>
                   </div>
-                  <svg class="result-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
+                  <ChevronRight class="result-arrow" :size="16" />
                 </button>
               </div>
             </div>
 
             <div class="results empty" v-else-if="search.query">
               <div class="empty-state">
-                <span class="empty-icon">∅</span>
+                <SearchX class="empty-icon" :size="48" />
                 <span class="empty-text">{{ t('search.empty', { query: search.query }) }}</span>
               </div>
             </div>
@@ -342,7 +338,6 @@ onUnmounted(() => window.removeEventListener('keydown', globalKeydown))
 }
 
 .empty-icon {
-  font-size: var(--text-3xl);
   color: var(--text-tertiary);
 }
 

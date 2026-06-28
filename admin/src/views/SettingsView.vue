@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { fetchAdminSettings, type AdminSettings } from '@/services/settings'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import { TriangleAlert } from 'lucide-vue-next'
 
 const settings = ref<AdminSettings | null>(null)
 const loading = ref(false)
@@ -30,7 +32,7 @@ onMounted(async () => {
     </div>
 
     <div v-else-if="error" class="error-state">
-      <span class="error-icon">⚠</span>
+      <TriangleAlert class="error-icon" :size="48" />
       <p>{{ error }}</p>
     </div>
 
@@ -135,9 +137,8 @@ onMounted(async () => {
 }
 
 .error-icon {
-  font-size: 3rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 </style>

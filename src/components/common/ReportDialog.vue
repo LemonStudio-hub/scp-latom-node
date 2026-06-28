@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { submitReport, type ReportType, type ReportSubmission } from '@/services/reports'
+import { X, CircleCheckBig } from 'lucide-vue-next'
 
 const { t } = useI18n()
 
@@ -97,19 +98,13 @@ function handleOverlayClick(e: MouseEvent) {
             <h3 class="report-title">{{ t('entry.report') }}</h3>
             <span class="report-scp-id">{{ scpId }}</span>
             <button class="report-close" @click="close" :disabled="submitting">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X :size="18" />
             </button>
           </div>
 
           <!-- Success State -->
           <div v-if="success" class="report-success">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
+            <CircleCheckBig :size="48" />
             <p>{{ t('entry.reportSuccess') }}</p>
           </div>
 

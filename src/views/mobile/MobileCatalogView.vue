@@ -5,6 +5,7 @@ import { useCrawlerStore } from '@/stores/crawler'
 import { useEntryProtocol, INTERVAL_OPTIONS } from '@/composables/useEntryProtocol'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
+import { Search, SearchX, Shield, Pause, Play, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import type { ObjectClass } from '@/types'
 import type { ProtocolMode } from '@/composables/useEntryProtocol'
 
@@ -71,10 +72,7 @@ onMounted(async () => {
     <!-- Sticky Search -->
     <div class="m-search-bar">
       <div class="m-search-wrap">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
+        <Search :size="16" />
         <input v-model="searchQuery" type="text" :placeholder="t('catalog.searchPlaceholder')" class="m-search-input" />
       </div>
     </div>
@@ -97,9 +95,7 @@ onMounted(async () => {
       <div class="m-protocol-top">
         <div class="m-protocol-title-row">
           <span class="m-protocol-icon-wrap">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <Shield :size="12" />
           </span>
           <span class="m-protocol-label">{{ t('catalog.protocol.title') }}</span>
           <span class="m-protocol-status" :class="protocol.mode.value === 'auto' ? (protocol.isPaused.value ? 'paused' : 'active') : 'idle'">
@@ -191,21 +187,12 @@ onMounted(async () => {
           <!-- Action buttons -->
           <div class="m-auto-actions">
             <button class="m-action-btn m-pause-btn" @click="protocol.togglePause()">
-              <svg v-if="!protocol.isPaused.value" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16" />
-                <rect x="14" y="4" width="4" height="16" />
-              </svg>
-              <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5,3 19,12 5,21" />
-              </svg>
+              <Pause v-if="!protocol.isPaused.value" :size="12" fill="currentColor" />
+              <Play v-else :size="12" fill="currentColor" />
               {{ protocol.isPaused.value ? t('catalog.protocol.resume') : t('catalog.protocol.pause') }}
             </button>
             <button class="m-action-btn m-shuffle-btn" @click="protocol.shuffle()" :disabled="protocol.transitioning.value">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spinning: protocol.transitioning.value }">
-                <polyline points="1 4 1 10 7 10" />
-                <polyline points="23 20 23 14 17 14" />
-                <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" />
-              </svg>
+              <RefreshCw :size="12" :class="{ spinning: protocol.transitioning.value }" />
               {{ t('catalog.protocol.shuffle') }}
             </button>
           </div>
@@ -235,14 +222,14 @@ onMounted(async () => {
 
     <!-- Error -->
     <div v-else-if="crawler.error && !crawler.hasData" class="m-error">
-      <span class="m-error-icon">⚠</span>
+      <TriangleAlert class="m-error-icon" :size="40" />
       <p>{{ crawler.error }}</p>
       <button class="m-retry-btn" @click="crawler.fetchEntries()">Retry</button>
     </div>
 
     <!-- No Data -->
     <div v-else-if="!crawler.hasData && !crawler.loading" class="m-empty">
-      <span class="m-empty-icon">∅</span>
+      <SearchX class="m-empty-icon" :size="40" />
       <p>No data available yet.</p>
     </div>
 
@@ -315,7 +302,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="crawler.entries.length === 0" class="m-empty">
-          <span class="m-empty-icon">∅</span>
+          <SearchX class="m-empty-icon" :size="40" />
           <p>{{ t('catalog.empty') }}</p>
         </div>
       </template>
@@ -944,9 +931,8 @@ onMounted(async () => {
 }
 
 .m-error-icon {
-  font-size: 2.5rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 
@@ -973,9 +959,8 @@ onMounted(async () => {
 }
 
 .m-empty-icon {
-  font-size: 2.5rem;
   color: var(--text-tertiary);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

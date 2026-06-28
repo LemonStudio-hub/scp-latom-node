@@ -6,6 +6,7 @@ import SearchInput from '@/components/common/SearchInput.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import { TriangleAlert } from 'lucide-vue-next'
 
 const store = useUsersStore()
 const router = useRouter()
@@ -56,7 +57,7 @@ function formatDate(d: string) {
     </div>
 
     <div v-else-if="store.error" class="error-state">
-      <span class="error-icon">⚠</span>
+      <TriangleAlert class="error-icon" :size="48" />
       <p>{{ store.error }}</p>
     </div>
 
@@ -164,9 +165,8 @@ function formatDate(d: string) {
 }
 
 .error-icon {
-  font-size: 3rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 </style>

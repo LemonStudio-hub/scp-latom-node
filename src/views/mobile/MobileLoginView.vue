@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { Shield, TriangleAlert } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -20,7 +21,7 @@ async function handleSubmit() {
 <template>
   <div class="m-auth">
     <div class="m-auth-header">
-      <div class="m-auth-icon">◈</div>
+      <div class="m-auth-icon"><Shield :size="40" :stroke-width="1.75" /></div>
       <h1>{{ t('auth.loginTitle') }}</h1>
       <p>{{ t('auth.loginSubtitle') }}</p>
     </div>
@@ -51,7 +52,7 @@ async function handleSubmit() {
 
       <Transition name="fade">
         <div v-if="auth.error" class="m-error">
-          <span>⚠</span> {{ auth.error }}
+          <TriangleAlert :size="18" /> {{ auth.error }}
         </div>
       </Transition>
 
@@ -83,9 +84,11 @@ async function handleSubmit() {
 }
 
 .m-auth-icon {
-  font-size: var(--text-3xl);
   color: var(--color-primary);
   margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .m-auth-header h1 {

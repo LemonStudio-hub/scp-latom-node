@@ -5,6 +5,7 @@ import { useUserActivityStore } from '@/stores/userActivity'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
 import type { ObjectClass } from '@/types'
+import { ArrowLeft, ArrowRight, Bookmark, Clock3, Star, Trash2, TriangleAlert, X } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const activity = useUserActivityStore()
@@ -54,14 +55,14 @@ onMounted(() => {
         :class="{ active: activity.activeTab === 'bookmarks' }"
         @click="activity.setTab('bookmarks')"
       >
-        ★ {{ t('activity.bookmarksTab') }}
+        <Star :size="16" /> {{ t('activity.bookmarksTab') }}
       </button>
       <button
         class="tab"
         :class="{ active: activity.activeTab === 'history' }"
         @click="activity.setTab('history')"
       >
-        ◷ {{ t('activity.historyTab') }}
+        <Clock3 :size="16" /> {{ t('activity.historyTab') }}
       </button>
     </div>
 
@@ -74,14 +75,14 @@ onMounted(() => {
 
       <!-- Error -->
       <div v-else-if="activity.bookmarkError && activity.bookmarks.length === 0" class="error-state">
-        <span class="error-icon">⚠</span>
+        <TriangleAlert class="error-icon" :size="48" />
         <p>{{ activity.bookmarkError }}</p>
         <button class="retry-btn" @click="activity.loadBookmarks()">{{ t('activity.retry') }}</button>
       </div>
 
       <!-- Empty -->
       <div v-else-if="activity.bookmarks.length === 0 && !activity.bookmarkLoading" class="empty-state">
-        <span class="empty-icon">★</span>
+        <Star class="empty-icon" :size="48" />
         <p>{{ t('bookmarks.empty') }}</p>
         <p class="empty-hint">{{ t('bookmarks.emptyHint') }}</p>
       </div>
@@ -106,7 +107,7 @@ onMounted(() => {
             </div>
           </router-link>
           <button class="delete-btn" @click="handleRemoveBookmark(entry.language, entry.scpNumber)" :title="t('bookmarks.remove')">
-            ✕
+            <X :size="16" />
           </button>
         </div>
       </div>
@@ -149,14 +150,14 @@ onMounted(() => {
 
       <!-- Error -->
       <div v-else-if="activity.historyError && !activity.hasHistoryEntries" class="error-state">
-        <span class="error-icon">⚠</span>
+        <TriangleAlert class="error-icon" :size="48" />
         <p>{{ activity.historyError }}</p>
         <button class="retry-btn" @click="activity.fetchHistoryList()">{{ t('activity.retry') }}</button>
       </div>
 
       <!-- Empty -->
       <div v-else-if="!activity.hasHistoryEntries && !activity.historyLoading" class="empty-state">
-        <span class="empty-icon">◷</span>
+        <Bookmark class="empty-icon" :size="48" />
         <p>{{ t('history.empty') }}</p>
       </div>
 
@@ -180,15 +181,15 @@ onMounted(() => {
                 </p>
               </div>
             </router-link>
-            <button class="delete-btn" @click="handleDeleteHistory(entry.id)" :title="t('history.delete')">✕</button>
+            <button class="delete-btn" @click="handleDeleteHistory(entry.id)" :title="t('history.delete')"><Trash2 :size="16" /></button>
           </div>
         </div>
 
         <!-- Pagination -->
         <div v-if="activity.historyTotalPages > 1" class="pagination">
-          <button class="page-btn" :disabled="activity.historyPage <= 1" @click="activity.setHistoryPage(activity.historyPage - 1)">← Prev</button>
+          <button class="page-btn" :disabled="activity.historyPage <= 1" @click="activity.setHistoryPage(activity.historyPage - 1)"><ArrowLeft :size="16" /> Prev</button>
           <span class="page-info">Page {{ activity.historyPage }} of {{ activity.historyTotalPages }}</span>
-          <button class="page-btn" :disabled="activity.historyPage >= activity.historyTotalPages" @click="activity.setHistoryPage(activity.historyPage + 1)">Next →</button>
+          <button class="page-btn" :disabled="activity.historyPage >= activity.historyTotalPages" @click="activity.setHistoryPage(activity.historyPage + 1)">Next <ArrowRight :size="16" /></button>
         </div>
       </template>
     </template>
@@ -219,6 +220,9 @@ onMounted(() => {
 }
 
 .tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: transparent;
@@ -505,9 +509,8 @@ onMounted(() => {
 }
 
 .error-icon {
-  font-size: 3rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 
@@ -527,9 +530,8 @@ onMounted(() => {
 }
 
 .empty-icon {
-  font-size: 3rem;
   color: var(--text-tertiary);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

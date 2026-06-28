@@ -13,6 +13,7 @@ import {
 } from '@/services/ai'
 import AiMessageBubble from './AiMessageBubble.vue'
 import AiConversationList from './AiConversationList.vue'
+import { UserRound, RotateCw, Send } from 'lucide-vue-next'
 
 const { t } = useI18n()
 
@@ -205,11 +206,7 @@ watch(messages, () => scrollToBottom(), { deep: true })
         </div>
 
         <div v-else-if="messages.length === 0" class="empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
-            <path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="2" />
-          </svg>
+          <UserRound :size="48" :stroke-width="1.5" opacity="0.3" />
           <p>{{ t('ai.title') }}</p>
         </div>
 
@@ -232,10 +229,7 @@ watch(messages, () => scrollToBottom(), { deep: true })
           :disabled="isStreaming"
           @click="handleRegenerate"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
+          <RotateCw :size="16" />
         </button>
         <textarea
           v-model="inputText"
@@ -250,10 +244,7 @@ watch(messages, () => scrollToBottom(), { deep: true })
           :disabled="!inputText.trim() || isStreaming"
           @click="sendMessage"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
+          <Send :size="18" />
         </button>
       </div>
     </main>

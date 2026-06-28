@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
+import { Building2, CircleDot, Network, RadioTower, ServerCog, Shield, SlidersHorizontal } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const visible = ref(false)
@@ -19,6 +20,16 @@ const classColors: Record<string, string> = {
   thaumiel: 'var(--class-thaumiel)',
   apollyon: 'var(--color-danger)',
   neutralized: 'var(--class-neutralized)',
+}
+
+const aboutSectionIcons = {
+  foundation: Shield,
+  latomNode: RadioTower,
+  classification: CircleDot,
+  spectrum: SlidersHorizontal,
+  security: Building2,
+  structure: Network,
+  system: ServerCog,
 }
 </script>
 
@@ -41,7 +52,7 @@ const classColors: Record<string, string> = {
       <!-- Foundation Section -->
       <section class="m-about-section fade-up-1">
         <div class="m-section-header">
-          <div class="m-section-icon">◈</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.foundation" :size="18" /></div>
           <h2>{{ t('about.foundation.title') }}</h2>
         </div>
         <p>{{ t('about.foundation.p1') }}</p>
@@ -52,7 +63,7 @@ const classColors: Record<string, string> = {
       <!-- Latom Node Section -->
       <section class="m-about-section fade-up-2">
         <div class="m-section-header">
-          <div class="m-section-icon">◫</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.latomNode" :size="18" /></div>
           <h2>{{ t('about.latomNode.title') }}</h2>
         </div>
         <p>{{ t('about.latomNode.p1') }}</p>
@@ -63,7 +74,7 @@ const classColors: Record<string, string> = {
       <!-- Classification Section -->
       <section class="m-about-section fade-up-3">
         <div class="m-section-header">
-          <div class="m-section-icon">◎</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.classification" :size="18" /></div>
           <h2>{{ t('about.classification.title') }}</h2>
         </div>
         <p class="m-section-intro">{{ t('about.classification.desc') }}</p>
@@ -87,7 +98,7 @@ const classColors: Record<string, string> = {
       <!-- Containment Spectrum -->
       <section class="m-about-section fade-up-4">
         <div class="m-section-header">
-          <div class="m-section-icon">◇</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.spectrum" :size="18" /></div>
           <h2>{{ t('about.spectrum.title') }}</h2>
         </div>
         <p class="m-section-intro">{{ t('about.spectrum.desc') }}</p>
@@ -114,7 +125,7 @@ const classColors: Record<string, string> = {
       <!-- Security Protocols -->
       <section class="m-about-section fade-up-5">
         <div class="m-section-header">
-          <div class="m-section-icon">◧</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.security" :size="18" /></div>
           <h2>{{ t('about.security.title') }}</h2>
         </div>
         <p class="m-section-intro">{{ t('about.security.desc') }}</p>
@@ -137,7 +148,7 @@ const classColors: Record<string, string> = {
       <!-- Foundation Structure -->
       <section class="m-about-section fade-up-6">
         <div class="m-section-header">
-          <div class="m-section-icon">▣</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.structure" :size="18" /></div>
           <h2>{{ t('about.structure.title') }}</h2>
         </div>
         <p class="m-section-intro">{{ t('about.structure.desc') }}</p>
@@ -176,7 +187,7 @@ const classColors: Record<string, string> = {
       <!-- System Information -->
       <section class="m-about-section fade-up-7">
         <div class="m-section-header">
-          <div class="m-section-icon">⚙</div>
+          <div class="m-section-icon"><component :is="aboutSectionIcons.system" :size="18" /></div>
           <h2>{{ t('about.system.title') }}</h2>
         </div>
         <div class="m-terminal">
@@ -360,7 +371,6 @@ const classColors: Record<string, string> = {
 }
 
 .m-section-icon {
-  font-size: var(--text-lg);
   color: var(--color-primary);
   width: 32px;
   height: 32px;

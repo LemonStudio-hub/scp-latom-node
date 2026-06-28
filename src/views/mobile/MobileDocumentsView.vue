@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { documents } from '@/data/documents'
 import Badge from '@/components/common/Badge.vue'
 import { useI18n } from 'vue-i18n'
+import { ChevronLeft } from 'lucide-vue-next'
 import type { Document } from '@/types'
 
 const { t } = useI18n()
@@ -95,9 +96,7 @@ function renderMarkdown(md: string): string {
         <div v-if="activeDoc" class="m-doc-overlay">
           <div class="m-doc-modal-header">
             <button class="m-doc-close" @click="closeDoc">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <ChevronLeft :size="20" />
             </button>
             <div class="m-doc-modal-meta">
               <Badge :variant="classVariant(activeDoc.classification)">

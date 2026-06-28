@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useProposalsStore } from '@/stores/proposals'
 import { useAuthStore } from '@/stores/auth'
 import Badge from '@/components/common/Badge.vue'
+import { Diamond, Minus, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -138,14 +139,14 @@ onMounted(() => {
 
     <!-- Error -->
     <div v-else-if="store.error && !store.proposals.length" class="error-state">
-      <span class="error-icon">⚠</span>
+      <TriangleAlert class="error-icon" :size="48" />
       <p>{{ store.error }}</p>
       <button class="retry-btn" @click="store.loadProposals()">{{ t('errors.retry') }}</button>
     </div>
 
     <!-- Empty -->
     <div v-else-if="!store.proposals.length && !store.loading" class="empty-state">
-      <span class="empty-icon">◇</span>
+      <Diamond class="empty-icon" :size="48" />
       <p>{{ t('proposals.empty') }}</p>
     </div>
 
@@ -171,9 +172,9 @@ onMounted(() => {
 
         <div class="proposal-footer">
           <div class="vote-counts">
-            <span class="vote-count for">▲ {{ p.votesFor }}</span>
-            <span class="vote-count against">▼ {{ p.votesAgainst }}</span>
-            <span class="vote-count abstain">— {{ p.votesAbstain }}</span>
+            <span class="vote-count for"><ThumbsUp :size="14" /> {{ p.votesFor }}</span>
+            <span class="vote-count against"><ThumbsDown :size="14" /> {{ p.votesAgainst }}</span>
+            <span class="vote-count abstain"><Minus :size="14" /> {{ p.votesAbstain }}</span>
           </div>
 
           <div v-if="p.userVote" class="user-voted">
@@ -181,9 +182,9 @@ onMounted(() => {
           </div>
 
           <div v-else-if="auth.isAuthenticated && p.status === 'open'" class="vote-actions">
-            <button class="vote-btn for" @click="castVote(p.id, 'for')" :title="t('proposals.vote.for')">▲ {{ t('proposals.vote.for') }}</button>
-            <button class="vote-btn against" @click="castVote(p.id, 'against')" :title="t('proposals.vote.against')">▼ {{ t('proposals.vote.against') }}</button>
-            <button class="vote-btn abstain" @click="castVote(p.id, 'abstain')" :title="t('proposals.vote.abstain')">— {{ t('proposals.vote.abstain') }}</button>
+            <button class="vote-btn for" @click="castVote(p.id, 'for')" :title="t('proposals.vote.for')"><ThumbsUp :size="14" /> {{ t('proposals.vote.for') }}</button>
+            <button class="vote-btn against" @click="castVote(p.id, 'against')" :title="t('proposals.vote.against')"><ThumbsDown :size="14" /> {{ t('proposals.vote.against') }}</button>
+            <button class="vote-btn abstain" @click="castVote(p.id, 'abstain')" :title="t('proposals.vote.abstain')"><Minus :size="14" /> {{ t('proposals.vote.abstain') }}</button>
           </div>
         </div>
       </div>
@@ -451,6 +452,12 @@ onMounted(() => {
   font-family: var(--font-mono);
 }
 
+.vote-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .vote-count.for { color: var(--color-success); }
 .vote-count.against { color: var(--color-danger); }
 .vote-count.abstain { color: var(--text-tertiary); }
@@ -467,6 +474,9 @@ onMounted(() => {
 }
 
 .vote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: var(--space-xs) var(--space-md);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
@@ -511,9 +521,8 @@ onMounted(() => {
 }
 
 .error-icon, .empty-icon {
-  font-size: 3rem;
   color: var(--text-tertiary);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 

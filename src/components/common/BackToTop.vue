@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ChevronUp } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const visible = ref(false)
@@ -40,9 +41,7 @@ onUnmounted(() => {
       :title="t('backToTop')"
       @click="scrollToTop"
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="18 15 12 9 6 15" />
-      </svg>
+      <ChevronUp :size="20" />
       <span class="back-to-top-ring"></span>
     </button>
   </Transition>

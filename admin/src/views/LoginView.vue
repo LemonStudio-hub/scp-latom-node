@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { Shield, TriangleAlert } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -21,7 +22,7 @@ async function handleLogin() {
   <div class="login-page">
     <div class="login-card">
       <div class="login-brand">
-        <div class="brand-icon">◈</div>
+        <div class="brand-icon"><Shield :size="48" :stroke-width="1.75" /></div>
         <h1 class="login-title">Admin Access Terminal</h1>
         <p class="login-subtitle">Level 5 clearance required</p>
       </div>
@@ -50,7 +51,7 @@ async function handleLogin() {
         </div>
 
         <div v-if="auth.error" class="login-error">
-          <span class="error-icon">⚠</span>
+          <TriangleAlert class="error-icon" :size="18" />
           {{ auth.error }}
         </div>
 
@@ -96,9 +97,11 @@ async function handleLogin() {
 }
 
 .brand-icon {
-  font-size: 3rem;
   color: var(--color-primary);
   margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .login-title {

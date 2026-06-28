@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CrawlEntry, CrawlState } from '@/services/crawler'
+import { Circle, Database } from 'lucide-vue-next'
 
 const { t } = useI18n()
 
@@ -21,17 +22,19 @@ const classCounts = computed(() => {
 })
 
 const stats = computed(() => [
-  { labelKey: 'stats.totalEntries', value: props.total, icon: '◈', color: 'var(--color-primary)' },
-  { labelKey: 'stats.safe', value: classCounts.value.Safe, icon: '●', color: 'var(--class-safe)' },
-  { labelKey: 'stats.euclid', value: classCounts.value.Euclid, icon: '●', color: 'var(--class-euclid)' },
-  { labelKey: 'stats.keter', value: classCounts.value.Keter, icon: '●', color: 'var(--class-keter)' },
+  { labelKey: 'stats.totalEntries', value: props.total, icon: Database, color: 'var(--color-primary)' },
+  { labelKey: 'stats.safe', value: classCounts.value.Safe, icon: Circle, color: 'var(--class-safe)' },
+  { labelKey: 'stats.euclid', value: classCounts.value.Euclid, icon: Circle, color: 'var(--class-euclid)' },
+  { labelKey: 'stats.keter', value: classCounts.value.Keter, icon: Circle, color: 'var(--class-keter)' },
 ])
 </script>
 
 <template>
   <section class="stats-grid stagger-children">
     <div v-for="(stat, index) in stats" :key="stat.labelKey" class="stat-card" :style="{ '--accent': stat.color }">
-      <div class="stat-icon" :style="{ color: stat.color }">{{ stat.icon }}</div>
+      <div class="stat-icon" :style="{ color: stat.color }">
+        <component :is="stat.icon" :size="22" :fill="stat.icon === Circle ? 'currentColor' : 'none'" />
+      </div>
       <div class="stat-value" :style="{ color: stat.color }">{{ stat.value }}</div>
       <div class="stat-label">{{ t(stat.labelKey) }}</div>
       <div class="stat-glow"></div>
@@ -94,10 +97,12 @@ const stats = computed(() => [
 }
 
 .stat-icon {
-  font-size: var(--text-xl);
   margin-bottom: var(--space-xs);
   transition: transform var(--transition-fast);
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stat-card:hover .stat-icon {

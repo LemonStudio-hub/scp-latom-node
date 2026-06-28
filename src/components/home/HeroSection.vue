@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ArrowRight } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const visible = ref(false)
@@ -29,10 +30,7 @@ onMounted(() => {
       <div class="hero-actions">
         <router-link to="/catalog" class="btn btn-primary">
           <span>{{ t('hero.browseCatalog') }}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
+          <ArrowRight :size="16" />
         </router-link>
         <router-link to="/about" class="btn btn-ghost">{{ t('hero.learnMore') }}</router-link>
       </div>

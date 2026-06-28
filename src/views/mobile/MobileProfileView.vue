@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import Badge from '@/components/common/Badge.vue'
 import MobileAiChatPanel from '@/components/mobile/MobileAiChatPanel.vue'
+import { CircleCheckBig, LogOut, TriangleAlert, User, UserRound } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -80,17 +81,11 @@ function handleLogout() {
     <!-- Tabs -->
     <div class="m-tabs">
       <button class="m-tab" :class="{ active: activeTab === 'profile' }" @click="activeTab = 'profile'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
+        <User :size="16" />
         {{ t('auth.profile') }}
       </button>
       <button class="m-tab" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        </svg>
+        <UserRound :size="16" />
         {{ t('ai.title') }}
       </button>
     </div>
@@ -179,22 +174,18 @@ function handleLogout() {
     <!-- Status Messages -->
     <Transition name="fade">
       <div v-if="localError || auth.error" class="m-error">
-        <span>⚠</span> {{ localError || auth.error }}
+        <TriangleAlert :size="18" /> {{ localError || auth.error }}
       </div>
     </Transition>
     <Transition name="fade">
       <div v-if="successMsg" class="m-success">
-        <span>✓</span> {{ successMsg }}
+        <CircleCheckBig :size="18" /> {{ successMsg }}
       </div>
     </Transition>
 
     <!-- Logout -->
     <button class="m-logout" @click="handleLogout">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-        <polyline points="16 17 21 12 16 7" />
-        <line x1="21" y1="12" x2="9" y2="12" />
-      </svg>
+      <LogOut :size="16" />
       {{ t('auth.logout') }}
     </button>
     </template>

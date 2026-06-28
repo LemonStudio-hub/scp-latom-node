@@ -5,6 +5,7 @@ import { useUserActivityStore } from '@/stores/userActivity'
 import Badge from '@/components/common/Badge.vue'
 import ClassBar from '@/components/common/ClassBar.vue'
 import type { ObjectClass } from '@/types'
+import { Bookmark, ChevronLeft, ChevronRight, Clock3, Star, Trash2, TriangleAlert, X } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const activity = useUserActivityStore()
@@ -53,14 +54,14 @@ onMounted(() => {
         :class="{ active: activity.activeTab === 'bookmarks' }"
         @click="activity.setTab('bookmarks')"
       >
-        ★ {{ t('activity.bookmarksTab') }}
+        <Star :size="16" /> {{ t('activity.bookmarksTab') }}
       </button>
       <button
         class="m-tab"
         :class="{ active: activity.activeTab === 'history' }"
         @click="activity.setTab('history')"
       >
-        ◷ {{ t('activity.historyTab') }}
+        <Clock3 :size="16" /> {{ t('activity.historyTab') }}
       </button>
     </div>
 
@@ -73,14 +74,14 @@ onMounted(() => {
 
       <!-- Error -->
       <div v-else-if="activity.bookmarkError && activity.bookmarks.length === 0" class="m-error">
-        <span class="m-error-icon">⚠</span>
+        <TriangleAlert class="m-error-icon" :size="40" />
         <p>{{ activity.bookmarkError }}</p>
         <button class="m-retry-btn" @click="activity.loadBookmarks()">{{ t('activity.retry') }}</button>
       </div>
 
       <!-- Empty -->
       <div v-else-if="activity.bookmarks.length === 0 && !activity.bookmarkLoading" class="m-empty">
-        <span class="m-empty-icon">★</span>
+        <Star class="m-empty-icon" :size="40" />
         <p>{{ t('bookmarks.empty') }}</p>
       </div>
 
@@ -101,7 +102,7 @@ onMounted(() => {
             <h3 class="m-entry-name">{{ entry.name || `SCP-${entry.scpNumber}` }}</h3>
             <p class="m-entry-time">{{ formatTime(entry.createdAt) }}</p>
           </router-link>
-          <button class="m-delete-btn" @click="handleRemoveBookmark(entry.language, entry.scpNumber)">✕</button>
+          <button class="m-delete-btn" @click="handleRemoveBookmark(entry.language, entry.scpNumber)"><X :size="16" /></button>
         </div>
       </div>
     </template>
@@ -141,14 +142,14 @@ onMounted(() => {
 
       <!-- Error -->
       <div v-else-if="activity.historyError && !activity.hasHistoryEntries" class="m-error">
-        <span class="m-error-icon">⚠</span>
+        <TriangleAlert class="m-error-icon" :size="40" />
         <p>{{ activity.historyError }}</p>
         <button class="m-retry-btn" @click="activity.fetchHistoryList()">{{ t('activity.retry') }}</button>
       </div>
 
       <!-- Empty -->
       <div v-else-if="!activity.hasHistoryEntries && !activity.historyLoading" class="m-empty">
-        <span class="m-empty-icon">◷</span>
+        <Bookmark class="m-empty-icon" :size="40" />
         <p>{{ t('history.empty') }}</p>
       </div>
 
@@ -170,15 +171,15 @@ onMounted(() => {
               <h3 class="m-entry-name">{{ entry.name || `SCP-${entry.scp_number}` }}</h3>
               <p class="m-entry-time">{{ t('history.visited') }} {{ formatTime(entry.visited_at) }}</p>
             </router-link>
-            <button class="m-delete-btn" @click="handleDeleteHistory(entry.id)">✕</button>
+            <button class="m-delete-btn" @click="handleDeleteHistory(entry.id)"><Trash2 :size="16" /></button>
           </div>
         </div>
 
         <!-- Pagination -->
         <div v-if="activity.historyTotalPages > 1" class="m-pagination">
-          <button class="m-page-btn" :disabled="activity.historyPage <= 1" @click="activity.setHistoryPage(activity.historyPage - 1)">←</button>
+          <button class="m-page-btn" :disabled="activity.historyPage <= 1" @click="activity.setHistoryPage(activity.historyPage - 1)"><ChevronLeft :size="16" /></button>
           <span class="m-page-info">{{ activity.historyPage }} / {{ activity.historyTotalPages }}</span>
-          <button class="m-page-btn" :disabled="activity.historyPage >= activity.historyTotalPages" @click="activity.setHistoryPage(activity.historyPage + 1)">→</button>
+          <button class="m-page-btn" :disabled="activity.historyPage >= activity.historyTotalPages" @click="activity.setHistoryPage(activity.historyPage + 1)"><ChevronRight :size="16" /></button>
         </div>
       </template>
     </template>
@@ -206,6 +207,10 @@ onMounted(() => {
 
 .m-tab {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: transparent;
@@ -218,7 +223,6 @@ onMounted(() => {
   transition: all var(--transition-fast);
   position: relative;
   bottom: -1px;
-  text-align: center;
 }
 
 .m-tab.active {
@@ -481,9 +485,8 @@ onMounted(() => {
 }
 
 .m-error-icon {
-  font-size: 2.5rem;
   color: var(--color-danger);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 
@@ -503,9 +506,8 @@ onMounted(() => {
 }
 
 .m-empty-icon {
-  font-size: 2.5rem;
   color: var(--text-tertiary);
-  display: block;
+  display: inline-block;
   margin-bottom: var(--space-md);
 }
 
