@@ -1,4 +1,4 @@
-.PHONY: all ci test test-frontend test-backend typecheck build clean help
+.PHONY: all ci test test-frontend test-backend typecheck build clean help dev db-local seed
 
 # ─── Default target ────────────────────────────────────────────────
 all: ci
@@ -43,6 +43,22 @@ install:
 	npm ci
 	cd worker && npm ci
 
+# ─── Local dev ───────────────────────────────────────────────────────
+# Starts frontend (8085) + admin (8086) + worker API (8787) together.
+# Frontend/admin point at the local worker via .env.development.local (VITE_API_BASE).
+dev:
+	npm run dev:all
+
+# Apply the D1 schema to the local (miniflare) database. Safe to re-run.
+db-local:
+	cd worker && npm run db:schema:local
+
+# Seed the local D1 with real SCP wiki data via the crawler.
+# Requires `make dev` (or `npm run dev:worker`) running in another terminal.
+# Long-running and safe to interrupt — each batch commits to D1 as it goes.
+seed:
+	cd worker && npm run seed:crawl
+
 # ─── Clean ─────────────────────────────────────────────────────────
 clean:
 	rm -rf node_modules dist coverage
@@ -61,4 +77,7 @@ help:
 	@echo "  coverage      - Run tests with coverage reporting"
 	@echo "  install       - Install dependencies for both projects"
 	@echo "  clean         - Remove node_modules, dist, and coverage"
+	@echo "  dev           - Start frontend + admin + worker API locally"
+	@echo "  db-local      - Apply D1 schema to the local database"
+	@echo "  seed          - Seed local D1 with real data via the crawler (run worker dev first)"
 	@echo "  help          - Show this help"

@@ -15,7 +15,9 @@
     "ci": "npm run typecheck && npm run test && npm run build",
     "admin:dev": "cd admin && npm run dev",
     "admin:build": "cd admin && npm run build",
-    "admin:typecheck": "cd admin && npm run typecheck"
+    "admin:typecheck": "cd admin && npm run typecheck",
+    "dev:worker": "cd worker && npm run dev",
+    "dev:all": "concurrently -n FRONTEND,ADMIN,WORKER -c cyan,magenta,yellow \"npm run dev\" \"npm run admin:dev\" \"npm run dev:worker\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.1",
@@ -32,6 +34,7 @@
     "@vitest/coverage-v8": "^4.1.9",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
+    "concurrently": "^10.0.3",
     "happy-dom": "^20.10.6",
     "typescript": "~6.0.2",
     "vite": "^8.1.0",

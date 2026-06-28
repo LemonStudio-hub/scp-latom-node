@@ -23,6 +23,8 @@ coverage/
 # Wrangler
 .dev.vars
 .wrangler/
+worker/wrangler.local.toml
+worker/scripts/__pycache__/
 
 # Claude Code
 .claude/

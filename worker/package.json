@@ -13,7 +13,8 @@
     "ci": "npm run typecheck && npm run test",
     "db:create": "wrangler d1 create scp-latom-node",
     "db:schema": "wrangler d1 execute scp-latom-node --file=schema.sql",
-    "db:schema:local": "wrangler d1 execute scp-latom-node --local --file=schema.sql"
+    "db:schema:local": "wrangler d1 execute scp-latom-node --local --file=schema.sql",
+    "seed:crawl": "python scripts/batch-crawl.py --api-base http://localhost:8787"
   },
   "dependencies": {
     "hono": "^4.9.4",

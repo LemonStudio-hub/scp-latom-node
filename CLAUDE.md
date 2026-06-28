@@ -44,6 +44,37 @@ make coverage      # Run tests with coverage
 make help          # Show all available targets
 ```
 
+### Local full-stack development
+
+`npm run dev:all` (or `make dev`) starts the frontend (8085), admin (8086), and the
+Worker API (`wrangler dev`, 8787) together via `concurrently`. `.env.development.local` /
+`admin/.env.development.local` (gitignored) set `VITE_API_BASE=http://localhost:8787`
+so both apps talk to the local Worker instead of production in dev mode only —
+delete them to fall back to `https://api.scp.lat`. (Deliberately `.development.local`,
+not plain `.env.local` — Vite loads `.env.local` in every mode, which would also
+leak into `vitest run` and `vite build` and break tests/production builds.)
+
+The local D1 database starts empty. One-time setup:
+```bash
+make db-local       # or: cd worker && npm run db:schema:local
+```
+
+To populate local D1 with real SCP wiki data (catalog listings, not full entry
+content — that's fetched lazily per-entry), run the crawler against the local
+Worker. **This hits the live SCP wiki and is long-running** (each batch pulls ~30
+entries with rate-limit delays; a full crawl can take hours per language) — it's
+safe to `Ctrl+C` at any point since each batch commits to D1 immediately:
+```bash
+# In one terminal:
+make dev            # or npm run dev:worker
+# In another terminal, once the Worker is up:
+make seed           # or: cd worker && npm run seed:crawl
+```
+
+AI chat features additionally require `GLM_API_KEY` in `worker/.dev.vars`
+(gitignored, not created by default) — without it, AI chat endpoints will error
+but the rest of the app works fine.
+
 ## CI/CD
 
 ### GitHub Actions
