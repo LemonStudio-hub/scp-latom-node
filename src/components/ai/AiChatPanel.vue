@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { useAiChat } from '@/composables/useAiChat'
 import { regenerateMessage } from '@/services/ai'
-import { apiPost } from '@/services/api'
 import AiMessageBubble from './AiMessageBubble.vue'
 import AiConversationList from './AiConversationList.vue'
 
@@ -22,6 +22,8 @@ const {
   sendMessage,
   handleKeydown,
 } = useAiChat()
+
+const router = useRouter()
 
 // Desktop-only: regenerate last assistant message
 async function handleRegenerate() {
@@ -45,8 +47,7 @@ async function handleRegenerate() {
       content,
     }
     if (res.code === 'ERR-401-CLEARANCE') {
-      apiPost('/auth/logout')
-      window.location.href = '/login'
+      router.push('/login')
     }
   }
   isStreaming.value = false

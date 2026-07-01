@@ -9,7 +9,6 @@ import {
   type AiMessage,
   type AiConversationMeta,
 } from '@/services/ai'
-import { apiPost } from '@/services/api'
 
 export function useAiChat() {
   const { t } = useI18n()
@@ -140,7 +139,6 @@ export function useAiChat() {
           }
           isStreaming.value = false
           if (error === 'ERR-401-CLEARANCE') {
-            apiPost('/auth/logout')
             router.push('/login')
           }
         },

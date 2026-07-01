@@ -8,6 +8,47 @@ function buildHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json' }
 }
 
+// ─── Token refresh lock ───────────────────────────────────
+// Prevents concurrent 401s from triggering multiple refresh calls.
+// When a refresh is in flight, other requests await the same promise.
+let refreshPromise: Promise<boolean> | null = null
+
+/** Paths that should never trigger a refresh attempt. */
+const NO_REFRESH_PATHS = new Set(['/auth/login', '/auth/register', '/auth/logout', '/auth/refresh'])
+
+/**
+ * Attempt to refresh the access token via the refresh token cookie.
+ * Returns true if the refresh succeeded, false otherwise.
+ * Uses a lock so concurrent callers share a single refresh request.
+ */
+async function attemptRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        logger.warn('Token refresh failed', { status: res.status })
+        return false
+      }
+      const json = await res.json()
+      return json.success === true
+    } catch (e) {
+      logger.warn('Token refresh network error', {
+        error: e instanceof Error ? e.message : String(e),
+      })
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
 /** Log a non-OK response using the same thresholds as `request`. */
 function logResponse(
   method: string,
@@ -62,6 +103,34 @@ async function requestStream(method: string, path: string, body?: unknown): Prom
     if (!res.ok) {
       const code = httpStatusToErrorCode(res.status)
       const error = resolveErrorMessage(code)
+
+      // On 401, attempt token refresh and retry once
+      if (code === ErrorCode.UNAUTHORIZED && !NO_REFRESH_PATHS.has(path)) {
+        const refreshed = await attemptRefresh()
+        if (refreshed) {
+          const retryRes = await fetch(`${API_URL}${path}`, {
+            method,
+            headers,
+            credentials: 'include',
+            body: body ? JSON.stringify(body) : undefined,
+          })
+          if (retryRes.ok) {
+            return { ok: true, response: retryRes }
+          }
+          const retryCode = httpStatusToErrorCode(retryRes.status)
+          const retryError = resolveErrorMessage(retryCode)
+          logResponse(
+            method,
+            path,
+            retryRes.status,
+            retryError,
+            Date.now() - start,
+            retryRes.headers.get('X-Request-Id'),
+          )
+          return { ok: false, error: retryError, code: retryCode }
+        }
+      }
+
       logResponse(method, path, res.status, error, duration, requestId)
       return { ok: false, error, code }
     }
@@ -104,6 +173,35 @@ async function request<T = unknown>(
     const json = await res.json()
     const result = normalizeResponse<T>(json, res.status)
     const duration = Date.now() - start
+
+    // On 401, attempt token refresh and retry once (unless this is an auth endpoint)
+    if (!result.ok && result.code === ErrorCode.UNAUTHORIZED && !NO_REFRESH_PATHS.has(path)) {
+      const refreshed = await attemptRefresh()
+      if (refreshed) {
+        const retryStart = Date.now()
+        const retryRes = await fetch(`${API_URL}${path}`, {
+          method,
+          headers,
+          credentials: 'include',
+          body: body ? JSON.stringify(body) : undefined,
+        })
+        const retryJson = await retryRes.json()
+        const retryResult = normalizeResponse<T>(retryJson, retryRes.status)
+        const retryDuration = Date.now() - retryStart
+
+        if (!retryResult.ok) {
+          logResponse(
+            method,
+            path,
+            retryRes.status,
+            retryResult.error,
+            retryDuration,
+            retryRes.headers.get('X-Request-Id'),
+          )
+        }
+        return retryResult
+      }
+    }
 
     if (!result.ok) {
       logResponse(method, path, res.status, result.error, duration, res.headers.get('X-Request-Id'))
