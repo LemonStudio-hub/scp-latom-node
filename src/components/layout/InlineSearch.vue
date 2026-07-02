@@ -22,6 +22,7 @@ const shortcutCompactMeasureRef = ref<HTMLElement | null>(null)
 const selectedIndex = ref(0)
 const showSearchDropdown = ref(false)
 const isSearchExpanding = ref(false)
+const isSearchDropdownClosing = ref(false)
 const isSearchClosing = ref(false)
 const useCompactSearchLabel = ref(false)
 
@@ -46,6 +47,13 @@ const shortcutKeyStyle = computed(() =>
       }
     : undefined,
 )
+const compactShortcutKeyStyle = computed(() =>
+  shortcutCompactWidth.value
+    ? {
+        width: `${shortcutCompactWidth.value}px`,
+      }
+    : undefined,
+)
 
 function updateShortcutKeyWidth() {
   nextTick(() => {
@@ -60,6 +68,13 @@ function updateShortcutKeyWidth() {
         SHORTCUT_KEY_CHROME.compact
     }
   })
+}
+
+function clearSearchLabelTimer() {
+  if (searchLabelTimer) {
+    window.clearTimeout(searchLabelTimer)
+    searchLabelTimer = undefined
+  }
 }
 
 const { searchResults } = useSearchResults()
@@ -86,12 +101,29 @@ function onSearchTransitionEnd(e: TransitionEvent) {
   }
 }
 
-function expandSearch() {
-  if (searchLabelTimer) {
-    window.clearTimeout(searchLabelTimer)
+function startSearchWidthCollapse() {
+  clearSearchLabelTimer()
+  isSearchDropdownClosing.value = false
+  isSearchExpanding.value = false
+  isSearchClosing.value = true
+  emit('closing-change', true)
+  useCompactSearchLabel.value = false
+  searchLabelTimer = window.setTimeout(() => {
+    useCompactSearchLabel.value = true
     searchLabelTimer = undefined
+  }, SEARCH_LABEL_SWAP_MS)
+}
+
+function onDropdownAfterLeave() {
+  if (isSearchDropdownClosing.value) {
+    startSearchWidthCollapse()
   }
+}
+
+function expandSearch() {
+  clearSearchLabelTimer()
   isSearchExpanding.value = true
+  isSearchDropdownClosing.value = false
   isSearchClosing.value = false
   emit('closing-change', false)
   useCompactSearchLabel.value = true
@@ -108,17 +140,15 @@ function expandSearch() {
 }
 
 function collapseSearch() {
-  if (!search.isOpen || isSearchClosing.value) return
+  if (!search.isOpen || isSearchClosing.value || isSearchDropdownClosing.value) return
 
-  showSearchDropdown.value = false
-  isSearchExpanding.value = false
-  isSearchClosing.value = true
-  emit('closing-change', true)
-  useCompactSearchLabel.value = false
-  searchLabelTimer = window.setTimeout(() => {
-    useCompactSearchLabel.value = true
-    searchLabelTimer = undefined
-  }, SEARCH_LABEL_SWAP_MS)
+  if (showSearchDropdown.value) {
+    isSearchDropdownClosing.value = true
+    showSearchDropdown.value = false
+    return
+  }
+
+  startSearchWidthCollapse()
 }
 
 function navigate(targetRoute: string) {
@@ -164,9 +194,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (searchLabelTimer) {
-    window.clearTimeout(searchLabelTimer)
-  }
+  clearSearchLabelTimer()
   window.removeEventListener('keydown', globalKeydown)
   window.removeEventListener('mousedown', onClickOutside)
 })
@@ -182,7 +210,8 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
       expanded: search.isOpen && !isSearchClosing,
       expanding: isSearchExpanding,
       closing: isSearchClosing,
-      'dropdown-open': search.isOpen && !isSearchClosing && showSearchDropdown,
+      'dropdown-open':
+        search.isOpen && !isSearchClosing && (showSearchDropdown || isSearchDropdownClosing),
     }"
     @transitionend="onSearchTransitionEnd"
   >
@@ -199,94 +228,98 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
         <Search :size="18" />
       </span>
       <span class="search-label">{{ t('header.searchPlaceholder') }}</span>
-      <kbd class="shortcut-key">{{ shortcutLabel }}</kbd>
+      <kbd class="shortcut-key" :style="compactShortcutKeyStyle">{{ shortcutLabel }}</kbd>
     </button>
 
     <div
       v-else
-      class="search-input-wrap"
-      :class="{ closing: isSearchClosing }"
-      @keydown="handleSearchKeydown"
+      class="search-shell"
+      :class="{
+        closing: isSearchClosing,
+        'dropdown-open': showSearchDropdown || isSearchDropdownClosing,
+      }"
     >
-      <span class="search-icon-slot">
-        <Search class="search-icon" :size="18" />
-      </span>
-      <input
-        ref="searchInputRef"
-        v-model="search.query"
-        type="text"
-        role="combobox"
-        :aria-label="t('header.searchTitle')"
-        :aria-expanded="search.isOpen && !isSearchClosing && showSearchDropdown"
-        aria-controls="search-results-listbox"
-        :aria-activedescendant="
-          searchResults[selectedIndex]
-            ? `search-result-${searchResults[selectedIndex].id}`
-            : undefined
-        "
-        aria-autocomplete="list"
-        :placeholder="
-          useCompactSearchLabel ? t('header.searchPlaceholder') : t('search.placeholder')
-        "
-        class="search-input"
-        spellcheck="false"
-        autocomplete="off"
-      />
-      <kbd class="esc-key" :class="{ compact: useCompactSearchLabel }" :style="shortcutKeyStyle">
-        <Transition name="shortcut" mode="out-in">
-          <span :key="useCompactSearchLabel ? 'shortcut' : 'esc'" class="shortcut-value">
-            {{ useCompactSearchLabel ? shortcutLabel : 'ESC' }}
-          </span>
-        </Transition>
-      </kbd>
-    </div>
-
-    <Transition name="dropdown">
-      <div
-        v-if="search.isOpen && !isSearchClosing && showSearchDropdown"
-        id="search-results-listbox"
-        class="search-dropdown"
-        role="listbox"
-        :aria-label="t('header.searchTitle')"
-      >
-        <div v-if="searchResults.length > 0" class="results">
-          <div class="results-header">
-            <span class="results-count">{{
-              t('search.results', { count: searchResults.length })
-            }}</span>
-          </div>
-          <div class="results-list">
-            <button
-              v-for="(item, i) in searchResults"
-              :id="`search-result-${item.id}`"
-              :key="item.id"
-              class="result-item"
-              :class="{ selected: i === selectedIndex }"
-              role="option"
-              :aria-selected="i === selectedIndex"
-              @click="navigate(item.route)"
-              @mouseenter="selectedIndex = i"
-            >
-              <span class="result-type" :class="item.type">
-                {{ item.type === 'entry' ? t('search.scp') : t('search.doc') }}
-              </span>
-              <div class="result-text">
-                <span class="result-title">{{ item.title }}</span>
-                <span class="result-subtitle">{{ item.subtitle }}</span>
-              </div>
-              <ChevronRight class="result-arrow" :size="16" />
-            </button>
-          </div>
-        </div>
-
-        <div v-else-if="search.query" class="results empty">
-          <div class="empty-state">
-            <SearchX class="empty-icon" :size="36" />
-            <span class="empty-text">{{ t('search.empty', { query: search.query }) }}</span>
-          </div>
-        </div>
+      <div class="search-input-wrap" @keydown="handleSearchKeydown">
+        <span class="search-icon-slot">
+          <Search class="search-icon" :size="18" />
+        </span>
+        <input
+          ref="searchInputRef"
+          v-model="search.query"
+          type="text"
+          role="combobox"
+          :aria-label="t('header.searchTitle')"
+          :aria-expanded="search.isOpen && !isSearchClosing && showSearchDropdown"
+          aria-controls="search-results-listbox"
+          :aria-activedescendant="
+            searchResults[selectedIndex]
+              ? `search-result-${searchResults[selectedIndex].id}`
+              : undefined
+          "
+          aria-autocomplete="list"
+          :placeholder="
+            useCompactSearchLabel ? t('header.searchPlaceholder') : t('search.placeholder')
+          "
+          class="search-input"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <kbd class="esc-key" :class="{ compact: useCompactSearchLabel }" :style="shortcutKeyStyle">
+          <Transition name="shortcut" mode="out-in">
+            <span :key="useCompactSearchLabel ? 'shortcut' : 'esc'" class="shortcut-value">
+              {{ useCompactSearchLabel ? shortcutLabel : 'ESC' }}
+            </span>
+          </Transition>
+        </kbd>
       </div>
-    </Transition>
+
+      <Transition name="dropdown" @after-leave="onDropdownAfterLeave">
+        <div
+          v-if="search.isOpen && showSearchDropdown"
+          id="search-results-listbox"
+          class="search-dropdown"
+          role="listbox"
+          :aria-label="t('header.searchTitle')"
+        >
+          <div v-if="searchResults.length > 0" class="results">
+            <div class="results-header">
+              <span class="results-count">{{
+                t('search.results', { count: searchResults.length })
+              }}</span>
+            </div>
+            <div class="results-list">
+              <button
+                v-for="(item, i) in searchResults"
+                :id="`search-result-${item.id}`"
+                :key="item.id"
+                class="result-item"
+                :class="{ selected: i === selectedIndex }"
+                role="option"
+                :aria-selected="i === selectedIndex"
+                @click="navigate(item.route)"
+                @mouseenter="selectedIndex = i"
+              >
+                <span class="result-type" :class="item.type">
+                  {{ item.type === 'entry' ? t('search.scp') : t('search.doc') }}
+                </span>
+                <div class="result-text">
+                  <span class="result-title">{{ item.title }}</span>
+                  <span class="result-subtitle">{{ item.subtitle }}</span>
+                </div>
+                <ChevronRight class="result-arrow" :size="16" />
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="search.query" class="results empty">
+            <div class="empty-state">
+              <SearchX class="empty-icon" :size="36" />
+              <span class="empty-text">{{ t('search.empty', { query: search.query }) }}</span>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </div>
   </div>
 </template>
 
@@ -297,21 +330,21 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
   --search-key-inset: 4px;
   --search-key-height: 28px;
   --search-content-height: 28px;
+  --search-width-duration: 220ms;
+  --search-dropdown-duration: 180ms;
+  --search-dropdown-opacity-duration: 150ms;
   position: relative;
   display: flex;
   justify-content: flex-end;
   width: 42px;
+  height: 36px;
   flex-shrink: 0;
   max-width: min(420px, 50vw);
-  transition: width 220ms var(--ease-out-expo);
+  transition: width var(--search-width-duration) var(--ease-out-expo);
 }
 
 .search-container.expanded {
   width: min(420px, 50vw);
-}
-
-.search-container.closing {
-  transition-delay: 70ms;
 }
 
 .search-btn {
@@ -321,10 +354,12 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
   gap: 8px;
   height: 36px;
   width: 100%;
+  box-sizing: border-box;
   padding: 0 var(--search-key-inset);
   border-radius: var(--search-radius);
   background: var(--bg-elevated);
   border: 1px solid var(--color-primary);
+  border-bottom-color: var(--color-primary);
   color: var(--text-secondary);
   font-size: var(--text-sm);
   transition: all var(--transition-fast);
@@ -368,7 +403,6 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
   justify-content: center;
   height: var(--search-key-height);
   line-height: 1;
-  padding-inline: 7px;
   flex-shrink: 0;
 }
 
@@ -411,6 +445,11 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
   display: inline-block;
 }
 
+.shortcut-key,
+.esc-key.compact {
+  padding-inline: 7px;
+}
+
 @media (min-width: 640px) {
   .search-container kbd {
     display: inline-flex;
@@ -419,30 +458,32 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
   }
 }
 
+.search-shell {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--search-radius);
+  background: var(--bg-elevated);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
 .search-input-wrap {
   position: relative;
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  height: 36px;
+  height: 34px;
   width: 100%;
   box-sizing: border-box;
   padding: 0 var(--search-key-inset);
-  border-radius: var(--search-radius) var(--search-radius) 0 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--color-primary);
-  transition: border-radius 120ms var(--ease-out-expo);
+  background: transparent;
   transform-origin: right center;
-}
-
-.search-container:not(.expanded) .search-input-wrap,
-.search-container.expanding .search-input-wrap {
-  border-radius: var(--search-radius);
-}
-
-.search-container.dropdown-open .search-input-wrap {
-  border-bottom-color: transparent;
 }
 
 .search-input-wrap .search-icon {
@@ -521,21 +562,12 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
 }
 
 .search-dropdown {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   width: 100%;
   box-sizing: border-box;
-  max-height: calc(60vh + 36px);
-  padding-top: 35px;
+  max-height: 60vh;
   overflow-y: auto;
-  background: var(--bg-elevated);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--search-radius);
-  z-index: 1;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: transparent;
   transform-origin: top center;
   scrollbar-width: none;
 }
@@ -544,27 +576,28 @@ watch(useCompactSearchLabel, updateShortcutKeyWidth)
   display: none;
 }
 
-.dropdown-enter-active {
-  overflow: hidden;
-  transition:
-    max-height 180ms var(--ease-out-expo),
-    opacity 150ms var(--ease-out-expo),
-    transform 180ms var(--ease-out-expo);
-}
-
+.dropdown-enter-active,
 .dropdown-leave-active {
   overflow: hidden;
+  transition: max-height var(--search-dropdown-duration) var(--ease-out-expo);
+}
+
+.dropdown-enter-active .results,
+.dropdown-leave-active .results {
   transition:
-    max-height 120ms var(--ease-out-expo),
-    opacity 100ms var(--ease-out-expo),
-    transform 120ms var(--ease-out-expo);
+    opacity var(--search-dropdown-opacity-duration) var(--ease-out-expo),
+    transform var(--search-dropdown-duration) var(--ease-out-expo);
 }
 
 .dropdown-enter-from,
 .dropdown-leave-to {
-  max-height: 36px;
+  max-height: 0;
+}
+
+.dropdown-enter-from .results,
+.dropdown-leave-to .results {
   opacity: 0;
-  transform: scaleY(0.12);
+  transform: translateY(-8px);
 }
 
 .results-header {

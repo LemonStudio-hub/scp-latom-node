@@ -181,10 +181,6 @@ const isSearchClosing = ref(false)
   transition: transform 220ms var(--ease-out-expo);
 }
 
-.header.search-closing .header-center {
-  transition-delay: 70ms;
-}
-
 .header.search-expanded .header-center {
   transform: translateX(calc((min(420px, 50vw) - 150px) / 6));
 }
