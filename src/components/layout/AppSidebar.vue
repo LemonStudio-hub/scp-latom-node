@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSidebar } from '@/composables/useSidebar'
-import { useFeatureFlags } from '@/composables/useFeatureFlags'
 import {
   LayoutDashboard,
   Grid2x2,
@@ -19,22 +18,16 @@ import {
 const { t } = useI18n()
 const route = useRoute()
 const { collapsed, toggle } = useSidebar()
-const { terminalEnabled } = useFeatureFlags()
 
-const navItems = computed(() => {
-  const items = [
-    { path: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
-    { path: '/catalog', labelKey: 'nav.catalog', icon: Grid2x2 },
-    { path: '/documents', labelKey: 'nav.documents', icon: FileText },
-    { path: '/proposals', labelKey: 'nav.proposals', icon: Diamond },
-    { path: '/activity', labelKey: 'nav.activity', icon: Clock },
-  ]
-  if (terminalEnabled.value) {
-    items.push({ path: '/terminal', labelKey: 'nav.terminal', icon: Terminal })
-  }
-  items.push({ path: '/about', labelKey: 'nav.about', icon: Info })
-  return items
-})
+const navItems = computed(() => [
+  { path: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { path: '/catalog', labelKey: 'nav.catalog', icon: Grid2x2 },
+  { path: '/documents', labelKey: 'nav.documents', icon: FileText },
+  { path: '/proposals', labelKey: 'nav.proposals', icon: Diamond },
+  { path: '/activity', labelKey: 'nav.activity', icon: Clock },
+  { path: '/terminal', labelKey: 'nav.terminal', icon: Terminal },
+  { path: '/about', labelKey: 'nav.about', icon: Info },
+])
 </script>
 
 <template>

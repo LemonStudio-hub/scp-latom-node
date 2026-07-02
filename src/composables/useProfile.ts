@@ -2,13 +2,11 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { useFeatureFlags } from '@/composables/useFeatureFlags'
 
 export function useProfile() {
   const { t } = useI18n()
   const router = useRouter()
   const auth = useAuthStore()
-  const { terminalEnabled, toggleTerminal } = useFeatureFlags()
 
   const activeTab = ref<'profile' | 'ai'>('profile')
 
@@ -81,8 +79,6 @@ export function useProfile() {
     t,
     auth,
     router,
-    terminalEnabled,
-    toggleTerminal,
     activeTab,
     editingCodename,
     changingPassword,

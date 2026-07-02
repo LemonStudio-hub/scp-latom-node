@@ -10,8 +10,6 @@ const { isMobile } = useDevice()
 const {
   t,
   auth,
-  terminalEnabled,
-  toggleTerminal,
   activeTab,
   editingCodename,
   changingPassword,
@@ -227,27 +225,6 @@ const {
           <div v-if="successMsg" class="success-msg"><span>✓</span> {{ successMsg }}</div>
         </Transition>
       </div>
-
-      <!-- Experimental Features -->
-      <div class="edit-card">
-        <div class="edit-header">
-          <h3>{{ t('experimental.title') }}</h3>
-        </div>
-        <p class="experimental-desc">{{ t('experimental.desc') }}</p>
-        <div class="feature-list">
-          <div class="feature-item">
-            <div class="feature-info">
-              <span class="feature-name">{{ t('experimental.terminal') }}</span>
-              <span class="feature-detail">{{ t('experimental.terminalDesc') }}</span>
-            </div>
-            <button class="toggle-btn" :class="{ active: terminalEnabled }" @click="toggleTerminal">
-              <span class="toggle-track">
-                <span class="toggle-thumb"></span>
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ═══ Mobile Profile Content ═══ -->
@@ -345,31 +322,6 @@ const {
       <Transition name="fade">
         <div v-if="successMsg" class="m-success"><span>✓</span> {{ successMsg }}</div>
       </Transition>
-
-      <!-- Experimental Features -->
-      <div class="m-edit-card">
-        <div class="m-edit-header">
-          <h3>{{ t('experimental.title') }}</h3>
-        </div>
-        <p class="m-experimental-desc">{{ t('experimental.desc') }}</p>
-        <div class="m-feature-list">
-          <div class="m-feature-item">
-            <div class="m-feature-info">
-              <span class="m-feature-name">{{ t('experimental.terminal') }}</span>
-              <span class="m-feature-detail">{{ t('experimental.terminalDesc') }}</span>
-            </div>
-            <button
-              class="m-toggle-btn"
-              :class="{ active: terminalEnabled }"
-              @click="toggleTerminal"
-            >
-              <span class="m-toggle-track">
-                <span class="m-toggle-thumb"></span>
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- Logout -->
       <button class="m-logout" @click="handleLogout">

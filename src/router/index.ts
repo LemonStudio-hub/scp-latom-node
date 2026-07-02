@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import i18n from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
-import { useFeatureFlags } from '@/composables/useFeatureFlags'
 import { logger } from '@/services/logger'
 
 const routes: RouteRecordRaw[] = [
@@ -58,12 +57,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/terminal',
     name: 'terminal',
-    component: () => import('@/views/TerminalView.vue'),
+    component: () => import('@/views/TerminalViewV2.vue'),
     meta: { titleKey: 'nav.terminal' },
-    beforeEnter: () => {
-      const { terminalEnabled } = useFeatureFlags()
-      if (!terminalEnabled.value) return '/'
-    },
   },
   {
     path: '/about',

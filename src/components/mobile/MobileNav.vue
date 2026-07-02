@@ -2,30 +2,21 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useFeatureFlags } from '@/composables/useFeatureFlags'
 import { Home, Grid2x2, FileText, Diamond, Clock, Terminal, Info, User } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const route = useRoute()
-const { terminalEnabled } = useFeatureFlags()
 
-const navItems = computed(() => {
-  const items = [
-    { path: '/', icon: Home, labelKey: 'nav.home' },
-    { path: '/catalog', icon: Grid2x2, labelKey: 'nav.catalog' },
-    { path: '/documents', icon: FileText, labelKey: 'nav.documents' },
-    { path: '/proposals', icon: Diamond, labelKey: 'nav.proposals' },
-    { path: '/activity', icon: Clock, labelKey: 'nav.activity' },
-  ]
-  if (terminalEnabled.value) {
-    items.push({ path: '/terminal', icon: Terminal, labelKey: 'nav.terminal' })
-  }
-  items.push(
-    { path: '/about', icon: Info, labelKey: 'nav.about' },
-    { path: '/profile', icon: User, labelKey: 'auth.profile' },
-  )
-  return items
-})
+const navItems = computed(() => [
+  { path: '/', icon: Home, labelKey: 'nav.home' },
+  { path: '/catalog', icon: Grid2x2, labelKey: 'nav.catalog' },
+  { path: '/documents', icon: FileText, labelKey: 'nav.documents' },
+  { path: '/proposals', icon: Diamond, labelKey: 'nav.proposals' },
+  { path: '/activity', icon: Clock, labelKey: 'nav.activity' },
+  { path: '/terminal', icon: Terminal, labelKey: 'nav.terminal' },
+  { path: '/about', icon: Info, labelKey: 'nav.about' },
+  { path: '/profile', icon: User, labelKey: 'auth.profile' },
+])
 
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/'

@@ -802,9 +802,8 @@ Exploration team encountered unexpected spatial anomalies. 3 of 8 team members r
   },
   terminal: {
     status: 'CONNECTED',
-    heroBadge: 'SECURE SESSION ACTIVE',
-    heroDesc:
-      'Interactive documentation terminal for the Latom Node archival system. All commands are sandboxed and monitored.',
+    maximize: 'Maximize',
+    minimize: 'Restore',
     statNode: 'NODE',
     statUser: 'USER',
     statStatus: 'STATUS',
